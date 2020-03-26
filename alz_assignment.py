@@ -9,6 +9,7 @@ Code for loading the data and split into train and test set.
 from sklearn import model_selection
 from sklearn.model_selection import train_test_split
 from sklearn.svm import SVC
+from sklearn.ensemble import RandomForestClassifier
 from adni.load_data import load_data
 
 # %%
@@ -67,18 +68,27 @@ for train_index, validation_index in sss.split(X_train, y_train):
 
 # 1. Support Vector Machine
 
-# Parameters
+# Parameters:
 # C -> regularization parameter, strength is inversely proportional to C
 # kernel -> linear, poly rbf, sigmoid or precomputed
 # degree -> integer
-# coef0 -> independent term? Only significant in poly and sigmoid. 
+# coef0 -> independent term? Only significant in poly and sigmoid.
 
 clf = SVC(kernel='rbf', degree=1, coef0=0.5, C=0.5)
-clf.fit(X_train_cv,y_train_cv)
-y_pred = clf.predict(x_train_cv)
+clf.fit(X_train_cv, y_train_cv)
+y_pred = clf.predict(X_train_cv)
 
 # 2. Random Forest
 
+# Parameters:
+# n_estimators -> number of trees
+# bootstrap -> False or True, determines if samples are drawn with replacement or not
+# class_weight -> if not given, all classes have weight one
+# max_features -> when looking at a split
+
+clf_rf = RandomForestClassifier(n_estimators=3, criterion='gini')
+clf_rf.fit(X_train_cv, y_train_cv)
+y_pred_rf = clf_rf.predict(X_train_cv)
 
 # %%
 # Experimental and evaluation setup
