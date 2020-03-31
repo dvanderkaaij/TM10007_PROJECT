@@ -11,6 +11,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
 from adni.load_data import load_data
+from sklearn import metrics
 
 # %%
 # Introduction (Eva)
@@ -54,7 +55,6 @@ print(f'Proportion: {round(proportion*100,2)}%')
 print(f'The number of AD samples: {AMOUNT_AD} ({round(RATIO_AD*100,2)}%)')
 
 # 2. Trainset --> Trainset(4/5) en Validatieset(1/5) voor cross-validatie
-
 X_train = X_train.to_numpy()
 y_train = y_train.to_numpy()
 
@@ -62,6 +62,23 @@ sss = model_selection.StratifiedShuffleSplit(n_splits=10, train_size=0.8, random
 for train_index, validation_index in sss.split(X_train, y_train):
     X_train_cv, X_validation = X_train[train_index], X_train[validation_index]
     y_train_cv, y_validation = y_train[train_index], y_train[validation_index]
+# Nu nog niet alles in een for loop, later wel?
+
+# Missing Data (Daniek)
+# - Veel 0 in een kolom --> Verwijderen
+# Samples kunnen ook verwijderen
+# - 2 kolommen hetzelfde? --> Vraag Slack
+# Eventueel opvullen met KNN (Lena)
+# Onderbouwen
+
+# Scaling (Eva)
+# -Robust range matching
+
+# Feature selectie?
+# PCA (Jari)
+# Zoeken optimaal aantal PCA
+
+
 
 # %%
 # Classifiers
@@ -90,12 +107,27 @@ clf_rf = RandomForestClassifier(n_estimators=3, criterion='gini')
 clf_rf.fit(X_train_cv, y_train_cv)
 y_pred_rf = clf_rf.predict(X_train_cv)
 
+# 3. K-Nearest Neighbour
+
+
 # %%
 # Experimental and evaluation setup
-
+# Beschrijven wat we doen en waarom
 
 # %%
 # Statistics
+# Accuracy, AUC, F1score, Precision, Recall
+    auc=metrics.roc_auc_score(Y1, y_score)
+    accuracy=metrics.accuracy_score(Y1, y_pred)
+    F1=metrics.f1_score(Y1,y_pred)
+    precision=metrics.precision_score(Y1,y_pred)
+    recall=metrics.recall_score(Y1, y_pred)
 
+    print(type(clf))
+    print('Acc:' +str(accuracy))
+    print('AUC:' +str(auc))
+    print('F1:' +str(F1))
+    print('precision:' +str(precision))
+    print('recall:' +str(recall))
 
 # %%
