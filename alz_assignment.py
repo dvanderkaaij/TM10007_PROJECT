@@ -76,7 +76,12 @@ for train_index, validation_index in sss.split(X_train, y_train):
 
 # Feature selectie?
 # PCA (Jari)
+# Niet voor NN en mogelijk ook niet voor Random Forrest, want die pakt toch beste features er wel uit
 # Zoeken optimaal aantal PCA
+n_features = [5, 10, 20, 30, 40, 50]
+p = PCA(n_components=n_features)
+p = p.fit(x)
+x = p.transform(x)
 
 
 
@@ -89,7 +94,11 @@ for train_index, validation_index in sss.split(X_train, y_train):
 # C -> regularization parameter, strength is inversely proportional to C
 # kernel -> linear, poly rbf, sigmoid or precomputed
 # degree -> integer
-# coef0 -> independent term? Only significant in poly and sigmoid.
+# coef0 -> independent term? Only significant in poly and sigmoid
+
+
+
+
 
 clf = SVC(kernel='rbf', degree=1, coef0=0.5, C=0.5)
 clf.fit(X_train_cv, y_train_cv)
@@ -103,11 +112,21 @@ y_pred = clf.predict(X_train_cv)
 # class_weight -> if not given, all classes have weight one
 # max_features -> when looking at a split
 
-clf_rf = RandomForestClassifier(n_estimators=3, criterion='gini')
+n_trees = [1, 5, 10, 50, 100] # Moeten we beperken om overtraining te voorkomen
+clf_rf = RandomForestClassifier(n_estimators=n_trees, criterion='gini') # Wati is die criterion?
 clf_rf.fit(X_train_cv, y_train_cv)
 y_pred_rf = clf_rf.predict(X_train_cv)
 
+# Bootstrapping True/False?
+# Bij voorkeur geen class weigh, denk ik?
+# Zeker wel feature importance (ranglijst met belangrijkste features)
+importances = clf_rf.feature_importances_
+std = np.std([tree.feature_importances_ for tree in forest.estimators_],
+             axis=0)
+indices = np.argsort(importances)[::-1]
+
 # 3. K-Nearest Neighbour
+
 
 
 # %%
