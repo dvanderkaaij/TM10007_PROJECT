@@ -12,6 +12,8 @@ from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
 from adni.load_data import load_data
 from sklearn import metrics
+import numpy as np
+from sklearn import preprocessing
 
 # %%
 # Introduction (Eva)
@@ -85,6 +87,14 @@ for train_index, validation_index in sss.split(X_train, y_train):
 
 # Scaling (Eva)
 # -Robust range matching
+
+scaler = preprocessing.RobustScaler() #we hebben zoveel data dat het niet mogelijk is
+#om elke feature te plotten en te kijken of er outliers zijn. Daarom gaan we ervan uit
+# dat er outliers zijn en gebruiken we de RobustScaler()
+scaler.fit(X_train_cv) #of wil je eerst alle train data scalen en dan pas in cross-validation?
+X_train_scaled = scaler.transform(X_train_cv)
+
+
 
 # Feature selectie?
 # PCA (Jari)
