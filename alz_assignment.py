@@ -14,6 +14,7 @@ from adni.load_data import load_data
 from sklearn import metrics
 import numpy as np
 from sklearn import preprocessing
+from missingpy import KNNImputer
 
 # %%
 # Introduction (Eva)
@@ -34,7 +35,15 @@ DATA = DATA.T.drop_duplicates().T # 18 features removed
 drop_cols = DATA.columns[(DATA == 0).sum() > 0.5*DATA.shape[0]]
 print(DATA.shape[0])
 print(drop_cols) # moet er nog 1 meer zijn
-DATA = DATA.drop(drop_cols) # nog checken
+# DATA = DATA.drop(drop_cols) # nog checken
+
+# removal of columns with same values?
+
+# removal of rows (samples) with a lot of zeros?
+
+# imputation of missing values with K-nn
+imputer = KNNImputer(missing_values="0", n_neighbors=5, weights="uniform")
+DATA_imputed = imputer.fit_transform(DATA)
 
 # %%
 # Describe data (Jari)
