@@ -22,6 +22,18 @@ from sklearn import metrics
 # Load data
 DATA = load_data()
 
+# removal of duplicates
+#duplicates = DATA.T.duplicated().T
+#print(duplicates)
+DATA = DATA.drop_duplicates() # 1 sample removed
+DATA = DATA.T.drop_duplicates().T # 18 features removed
+
+# removal of empty columns
+drop_cols = DATA.columns[(DATA == 0).sum() > 0.5*DATA.shape[0]]
+print(DATA.shape[0])
+print(drop_cols) # moet er nog 1 meer zijn
+DATA = DATA.drop(drop_cols) # nog checken
+
 # %%
 # Describe data (Jari)
 AMOUNT_SAMPLES = len(DATA.index)
@@ -117,17 +129,17 @@ y_pred_rf = clf_rf.predict(X_train_cv)
 # %%
 # Statistics
 # Accuracy, AUC, F1score, Precision, Recall
-    auc=metrics.roc_auc_score(Y1, y_score)
-    accuracy=metrics.accuracy_score(Y1, y_pred)
-    F1=metrics.f1_score(Y1,y_pred)
-    precision=metrics.precision_score(Y1,y_pred)
-    recall=metrics.recall_score(Y1, y_pred)
+   # auc=metrics.roc_auc_score(Y1, y_score)
+   # accuracy=metrics.accuracy_score(Y1, y_pred)
+   # F1=metrics.f1_score(Y1,y_pred)
+   # precision=metrics.precision_score(Y1,y_pred)
+   # recall=metrics.recall_score(Y1, y_pred)
 
-    print(type(clf))
-    print('Acc:' +str(accuracy))
-    print('AUC:' +str(auc))
-    print('F1:' +str(F1))
-    print('precision:' +str(precision))
-    print('recall:' +str(recall))
+   # print(type(clf))
+   # print('Acc:' +str(accuracy))
+   # print('AUC:' +str(auc))
+   # print('F1:' +str(F1))
+   # print('precision:' +str(precision))
+   # print('recall:' +str(recall))
 
 # %%
