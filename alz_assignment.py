@@ -13,7 +13,9 @@ from sklearn.ensemble import RandomForestClassifier
 from adni.load_data import load_data
 from sklearn import metrics
 import numpy as np
+import pandas as pd
 from sklearn import preprocessing
+from sklearn.decomposition import PCA
 from missingpy import KNNImputer
 
 # %%
@@ -23,21 +25,26 @@ from missingpy import KNNImputer
 
 # %%
 # Load data
+DATA_original = load_data()
 DATA = load_data()
 
 # removal of duplicates
-#duplicates = DATA.T.duplicated().T
-#print(duplicates)
 DATA = DATA.drop_duplicates() # 1 sample removed
 DATA = DATA.T.drop_duplicates().T # 18 features removed
 
 # removal of empty columns
-drop_cols = DATA.columns[(DATA == 0).sum() > 0.5*DATA.shape[0]]
-print(DATA.shape[0])
-print(drop_cols) # moet er nog 1 meer zijn
-# DATA = DATA.drop(drop_cols) # nog checken
+empty_cols = DATA.columns[(DATA == 0).sum() > 0.2*DATA.shape[0]]
+print(DATA.columns)
+print(f'empty: {empty_cols}') # missing: vf_Frangi_edge_energy_SR(1.0, 10.0)_SS2.0
+DATA = DATA.drop(DATA[empty_cols], axis=1) 
 
-# removal of columns with same values?
+# removal of columns with same values
+X = DATA
+X = X.drop(['label'], axis=1) # to avoid removing labels
+nunique = X.apply(pd.Series.nunique)
+same_cols = nunique[nunique < 3].index
+print(same_cols)
+DATA = DATA.drop(DATA[same_cols], axis=1) # 4 colums removed
 
 # removal of rows (samples) with a lot of zeros?
 
@@ -111,10 +118,8 @@ X_train_scaled = scaler.transform(X_train_cv)
 # Zoeken optimaal aantal PCA
 n_features = [5, 10, 20, 30, 40, 50]
 p = PCA(n_components=n_features)
-p = p.fit(x)
-x = p.transform(x)
-
-
+p = p.fit(X_train_cv)
+x = p.transform(X_train_cv)
 
 # %%
 # Classifiers
@@ -126,10 +131,6 @@ x = p.transform(x)
 # kernel -> linear, poly rbf, sigmoid or precomputed
 # degree -> integer
 # coef0 -> independent term? Only significant in poly and sigmoid
-
-
-
-
 
 clf = SVC(kernel='rbf', degree=1, coef0=0.5, C=0.5)
 clf.fit(X_train_cv, y_train_cv)
