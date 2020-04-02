@@ -12,11 +12,15 @@ from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
 from adni.load_data import load_data
 from sklearn import metrics
+from sklearn import preprocessing
+
+
 import numpy as np
 import pandas as pd
 from sklearn import preprocessing
 from sklearn.decomposition import PCA
 from missingpy import KNNImputer
+from sklearn.neighbors import KNeighborsClassifier
 
 # %%
 # Introduction (Eva)
@@ -27,30 +31,6 @@ from missingpy import KNNImputer
 # Load data
 DATA_original = load_data()
 DATA = load_data()
-
-# removal of duplicates
-DATA = DATA.drop_duplicates() # 1 sample removed
-DATA = DATA.T.drop_duplicates().T # 18 features removed
-
-# removal of empty columns
-empty_cols = DATA.columns[(DATA == 0).sum() > 0.2*DATA.shape[0]]
-print(DATA.columns)
-print(f'empty: {empty_cols}') # missing: vf_Frangi_edge_energy_SR(1.0, 10.0)_SS2.0
-DATA = DATA.drop(DATA[empty_cols], axis=1) 
-
-# removal of columns with same values
-X = DATA
-X = X.drop(['label'], axis=1) # to avoid removing labels
-nunique = X.apply(pd.Series.nunique)
-same_cols = nunique[nunique < 3].index
-print(same_cols)
-DATA = DATA.drop(DATA[same_cols], axis=1) # 4 colums removed
-
-# removal of rows (samples) with a lot of zeros?
-
-# imputation of missing values with K-nn
-imputer = KNNImputer(missing_values="0", n_neighbors=5, weights="uniform")
-DATA_imputed = imputer.fit_transform(DATA)
 
 # %%
 # Describe data (Jari)
@@ -66,65 +46,93 @@ RATIO_CN = AMOUNT_CN/AMOUNT_SAMPLES
 print(f'The number of AD samples: {AMOUNT_AD} ({round(RATIO_AD*100,2)}%)')
 print(f'The number of CN samples: {AMOUNT_CN} ({round(RATIO_CN*100,2)}%)')
 
-# %%
-# Preprocessing (Daniek)
-
-# get df X with all features and df y with labels
+# %% 
+# Extract labels
+# Get dataframe X with all features and dataframe Y with labels
 X = DATA
 X = X.drop(['label'], axis=1)
-y = DATA['label']
+Y = DATA['label']
+lb = preprocessing.LabelBinarizer()
+Y = lb.fit_transform(Y)
 
-# 1. Split dataset --> Trainset(4/5) en Testset(1/5)
-X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=0.8, random_state=None, stratify=y)
+# Split dataset --> Trainset(4/5) en Testset(1/5)
+X_train, X_test, Y_train, Y_test = train_test_split(X, Y, train_size=0.8, random_state=None, stratify=Y)
 
-# check if percentage of samples for each class is preserved
-samples = len(y_train)
-label1 = sum(y_train == 'AD')
-proportion = label1/samples
-print(f'Proportion: {round(proportion*100,2)}%')
-print(f'The number of AD samples: {AMOUNT_AD} ({round(RATIO_AD*100,2)}%)')
+# %% Preprocessing
 
-# 2. Trainset --> Trainset(4/5) en Validatieset(1/5) voor cross-validatie
+# Removal of duplicates (Daniek)
+# X_train = X_train.drop_duplicates() # 1 sample removed
+X_train = X_train.T.drop_duplicates().T # 18 features removed
+
+# Removal of empty columns (Eva)
+empty_cols = X_train.columns[(X_train == 0).sum() > 0.8*X_train.shape[0]]
+print(X_train.columns)
+print(f'empty: {empty_cols}') # missing: vf_Frangi_edge_energy_SR(1.0, 10.0)_SS2.0
+X_train = X_train.drop(X_train[empty_cols], axis=1) 
+
+# Removal of columns with same values
+nunique = X_train.apply(pd.Series.nunique)
+same_cols = nunique[nunique < 3].index
+print(same_cols)
+X_train = X_train.drop(X_train[same_cols], axis=1) # 4 colums removed
+
+# Cross validation 10 Fold
+# Trainset --> Trainset(4/5) en Validatieset(1/5) voor cross-validatie
 X_train = X_train.to_numpy()
-y_train = y_train.to_numpy()
+#Y_train = Y_train.to_numpy()
 
-sss = model_selection.StratifiedShuffleSplit(n_splits=10, train_size=0.8, random_state=None)
-for train_index, validation_index in sss.split(X_train, y_train):
-    X_train_cv, X_validation = X_train[train_index], X_train[validation_index]
-    y_train_cv, y_validation = y_train[train_index], y_train[validation_index]
-# Nu nog niet alles in een for loop, later wel?
+all_X_train_cv = []
+all_X_validation_cv = []
+all_Y_train_cv = []
+all_Y_validation_cv = []
 
-# Missing Data (Daniek)
-# - Veel 0 in een kolom --> Verwijderen
-# Samples kunnen ook verwijderen
-# - 2 kolommen hetzelfde? --> Vraag Slack
-# Eventueel opvullen met KNN (Lena)
-# Onderbouwen
+sss = model_selection.StratifiedShuffleSplit(n_splits=10, train_size=0.8, random_state=42)
+for train_index, validation_index in sss.split(X_train, Y_train):
+    X_train_cv, X_validation_cv = X_train[train_index], X_train[validation_index]
+    Y_train_cv, Y_validation_cv = Y_train[train_index], Y_train[validation_index]
 
-# Scaling (Eva)
-# -Robust range matching
+    # imputation of missing values with K-nn
+    # imputer = KNNImputer(missing_values=0, n_neighbors=5, weights="uniform")
+    # DATA_imputed = imputer.fit_transform(DATA)
 
-scaler = preprocessing.RobustScaler() #we hebben zoveel data dat het niet mogelijk is
-#om elke feature te plotten en te kijken of er outliers zijn. Daarom gaan we ervan uit
-# dat er outliers zijn en gebruiken we de RobustScaler()
-scaler.fit(X_train_cv) #of wil je eerst alle train data scalen en dan pas in cross-validation?
-X_train_scaled = scaler.transform(X_train_cv)
+    # Scaling: Robust range matching
+    scaler = preprocessing.RobustScaler()
+    # we hebben zoveel data dat het niet mogelijk is
+    # om elke feature te plotten en te kijken of er outliers zijn. Daarom gaan we ervan uit
+    # dat er outliers zijn en gebruiken we de RobustScaler()
+    scaler.fit(X_train_cv)
+    X_train_scaled      = scaler.transform(X_train_cv)
+    X_validation_scaled = scaler.transform(X_validation_cv)
 
 
+    all_X_train_cv.append(X_train_scaled)
+    all_X_validation_cv.append(X_validation_scaled)
+    all_Y_train_cv.append(Y_train_cv)
+    all_Y_validation_cv.append(Y_validation_cv)
 
-# Feature selectie?
-# PCA (Jari)
-# Niet voor NN en mogelijk ook niet voor Random Forrest, want die pakt toch beste features er wel uit
-# Zoeken optimaal aantal PCA
-n_features = [5, 10, 20, 30, 40, 50]
-p = PCA(n_components=n_features)
-p = p.fit(X_train_cv)
-x = p.transform(X_train_cv)
+
+    # PCA (Jari)
+    n_features = 50 # Meerder mogelijkheden, zoen nog optimaal aantal (hyperparameter)
+    p = PCA(n_components=n_features)
+    p = p.fit(X_train_cv)
+    x = p.transform(X_train_cv)
+
+    # K-NN (Jari)
+    clf = KNeighborsClassifier(n_neighbors=5)
+    clf.fit(X_train_cv, Y_train_cv)
+    Y_pred_train      = clf.predict(X_train_cv)
+    Y_pred_validation = clf.predict(X_validation_cv)
+    
+    # Metric
+    auc = metrics.roc_auc_score(Y_train_cv, Y_pred_train)
+    print(auc)
+    auc2 = metrics.roc_auc_score(Y_validation_cv, Y_pred_validation)
+    print(auc2)
 
 # %%
 # Classifiers
 
-# 1. Support Vector Machine
+# 1. Support Vector Machine 
 
 # Parameters:
 # C -> regularization parameter, strength is inversely proportional to C
@@ -136,7 +144,7 @@ clf = SVC(kernel='rbf', degree=1, coef0=0.5, C=0.5)
 clf.fit(X_train_cv, y_train_cv)
 y_pred = clf.predict(X_train_cv)
 
-# 2. Random Forest
+# 2. Random Forest (Eva)
 
 # Parameters:
 # n_estimators -> number of trees
