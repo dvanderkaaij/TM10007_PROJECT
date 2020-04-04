@@ -52,11 +52,12 @@ print(f'The number of CN samples: {AMOUNT_CN} ({round(RATIO_CN*100,2)}%)')
 X = DATA
 X = X.drop(['label'], axis=1)
 Y = DATA['label']
-#lb = preprocessing.LabelBinarizer()
-#Y = lb.fit_transform(Y)
+# replaced the binarizing 
 
 # Split dataset --> Trainset(4/5) en Testset(1/5)
 X_train, X_test, Y_train, Y_test = train_test_split(X, Y, train_size=0.8, random_state=None, stratify=Y)
+lb = preprocessing.LabelBinarizer()
+Y_test = lb.fit_transform(Y_test)
 
 # %% Preprocessing
 
@@ -66,9 +67,11 @@ X_train, X_test, Y_train, Y_test = train_test_split(X, Y, train_size=0.8, random
 X_train = X_train.drop_duplicates()
 # remove same sample from labels
 duplicate = X_train[X_train.duplicated(keep='first')]
-duplicate_id = duplicates.index
+duplicate_id = duplicate.index
 Y_train = Y_train.drop(duplicate_id) 
-# note -> doesn't work after binarizing the labels
+
+lb = preprocessing.LabelBinarizer()
+Y_train = lb.fit_transform(Y_train)
 
 # remove 18 features
 X_train = X_train.T.drop_duplicates().T 
