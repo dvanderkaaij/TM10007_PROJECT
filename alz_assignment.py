@@ -9,6 +9,7 @@ Code for loading the data and split into train and test set.
 from sklearn import model_selection
 from sklearn.model_selection import train_test_split
 from sklearn.svm import SVC
+from sklearn.model_selection import GridSearchCV
 from sklearn.ensemble import RandomForestClassifier
 from adni.load_data import load_data
 from sklearn import metrics
@@ -223,11 +224,45 @@ seaborn.scatterplot(x=auc_n_trees, y=auc_val_values)
 # degree -> integer
 # coef0 -> independent term? Only significant in poly and sigmoid
 
-clf = SVC(kernel='rbf', degree=1, coef0=0.5, C=0.5)
-clf.fit(X_train_cv, y_train_cv)
-y_pred = clf.predict(X_train_cv)
+for train_index, validation_index in kfold.split(X_train, Y_train):
+    X_train_cv, X_validation_cv = X_train[train_index], X_train[validation_index]
+    Y_train_cv, Y_validation_cv = Y_train[train_index], Y_train[validation_index]
 
-# 2. Random Forest (Eva)
+    # Scaling: Robust range matching
+    scaler = preprocessing.RobustScaler()
+
+    scaler.fit(X_train_cv)
+    X_train_scaled      = scaler.transform(X_train_cv)
+    X_validation_scaled = scaler.transform(X_validation_cv)
+
+    n_features = 50 # Meerder mogelijkheden, zoen nog optimaal aantal (hyperparameter)
+    p = PCA(n_components=n_features)
+    p = p.fit(X_train_cv)
+    x = p.transform(X_train_cv)
+    
+    # SVC
+    parameters = [{'kernel': ['rbf'], 'gamma': [1e-3, 1e-4],
+               'C': [1, 10, 100, 1000]},
+              {'kernel': ['linear'], 'C': [1, 10, 100, 1000]}]
+    svc = SVC()
+    clf = GridSearchCV(svc, parameters)
+    clf.fit(X_train_cv, Y_train_cv)
+
+    y_pred_train_svc = clf.predict(X_train_cv)
+    Y_pred_validation_svc = clf.predict(X_validation_cv)
+
+    # metric for SVC
+    print("Best parameters set found on development set:")
+    print()
+    print(clf.best_params_)
+    auc_train = metrics.roc_auc_score(Y_train_cv, Y_pred_train)
+    auc_val = metrics.roc_auc_score(Y_validation_cv, Y_pred_validation)
+    print("auc train:")
+    print(auc_train)
+    print("auc validation:")
+    print(auc_val)
+
+# %%2. Random Forest (Eva)
 
 # Parameters:
 # n_estimators -> number of trees
