@@ -147,6 +147,43 @@ for train_index, validation_index in kfold.split(X_train, Y_train):
     auc2 = metrics.roc_auc_score(Y_validation_cv, Y_pred_validation)
     print(auc2)
 
+
+
+# %% KNN
+
+# Initialise lists
+best_n_neighbors = []
+AUC = []
+
+# Amount of components is 1-10
+components_list = list(range(0, 11))
+
+for components in components_list:
+    print(components)
+
+    # 0 components is without PCA
+    x = X_train
+    if components > 0:
+        p = PCA(n_components=components)
+        p = p.fit(X_train)
+        x = p.transform(X_train)
+
+    knn = KNeighborsClassifier()
+    parameters = {"n_neighbors": list(range(1, 51, 2))} # 1-50 NN
+
+    cv_10fold = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
+
+    grid_search = model_selection.GridSearchCV(knn, parameters, cv=cv_10fold, scoring='roc_auc')
+    grid_search.fit(x, Y_train)
+
+    clf = grid_search.best_estimator_
+    best_n_neighbors.append(clf.n_neighbors)
+
+    DF = pd.DataFrame(grid_search.cv_results_)
+    AUC.append(max(DF['mean_test_score']))
+
+    print(f'Amount of neighbors: {best_n_neighbors[components]} with AUC: {AUC[components]}')
+
 # %%
 # Classifiers
 
