@@ -129,7 +129,7 @@ for train_index, validation_index in kfold.split(X_train, Y_train):
     all_Y_validation_cv.append(Y_validation_cv)
 
 
-    # PCA (Jari)
+    # PCA (Jari) MOET PCA NIET MET DE X_validation_scaled ?????
     n_features = 50 # Meerder mogelijkheden, zoen nog optimaal aantal (hyperparameter)
     p = PCA(n_components=n_features)
     p = p.fit(X_train_cv)
@@ -146,6 +146,71 @@ for train_index, validation_index in kfold.split(X_train, Y_train):
     print(auc)
     auc2 = metrics.roc_auc_score(Y_validation_cv, Y_pred_validation)
     print(auc2)
+
+
+# %% RANDOM FOREST
+# Cross validation 10 Fold
+# belangrijkste hyperparameters n_components (trees) and max_features (the numer of features
+# considered for splitting at eacht leaf node)
+# max_depth = max number of levels in each decision tree
+# min_samples_split 
+# min_samples_leaf
+# bootstrap - method for sampling datapoints (with or without replacement)
+# Aantal trees bepalen aan de hand van een grafiek --> nog goeie van maken
+
+import matplotlib.pyplot as plt
+import numpy as np
+import seaborn
+
+kfold = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
+auc_train_values = []
+auc_val_values = []
+auc_n_trees = []
+
+for train_index, validation_index in kfold.split(X_train, Y_train):
+    X_train_cv, X_validation_cv = X_train[train_index], X_train[validation_index]
+    Y_train_cv, Y_validation_cv = Y_train[train_index], Y_train[validation_index]
+
+    # Scaling: Robust range matching
+    scaler = preprocessing.RobustScaler()
+
+    scaler.fit(X_train_cv)
+    X_train_scaled      = scaler.transform(X_train_cv)
+    X_validation_scaled = scaler.transform(X_validation_cv)
+
+    n_features = 50 # Meerder mogelijkheden, zoen nog optimaal aantal (hyperparameter)
+    p = PCA(n_components=n_features)
+    p = p.fit(X_train_cv)
+    x = p.transform(X_train_cv)
+
+    n_trees = [1, 5, 10, 20, 50, 100] # Moeten we beperken om overtraining te voorkomen
+    #moeten we nog iets met random_state?
+    # Wat is die criterion?
+    
+    for index, tree in enumerate(n_trees): 
+        clf_rf = RandomForestClassifier(n_estimators=tree)
+        
+        clf_rf.fit(X_train_cv, Y_train_cv)
+        Y_pred_train      = clf_rf.predict(X_train_cv)
+        Y_pred_validation = clf_rf.predict(X_validation_cv)
+       
+        # Metric
+        auc_train = metrics.roc_auc_score(Y_train_cv, Y_pred_train)
+        auc_val = metrics.roc_auc_score(Y_validation_cv, Y_pred_validation)
+        print(tree)
+        print(auc_val)
+        auc_train_values.append(auc_train) 
+        auc_n_trees.append(tree)
+        auc_val_values.append(auc_val)
+
+plt.plot(auc_n_trees, auc_train_values)
+plt.plot(auc_n_trees, auc_val_values) 
+plt.show()
+
+seaborn.scatterplot(x=auc_n_trees, y=auc_train_values)
+seaborn.scatterplot(x=auc_n_trees, y=auc_val_values)
+
+        
 
 # %%
 # Classifiers
