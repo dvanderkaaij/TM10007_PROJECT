@@ -13,6 +13,7 @@ from sklearn.ensemble import RandomForestClassifier
 from adni.load_data import load_data
 from sklearn import metrics
 from sklearn import preprocessing
+from sklearn.model_selection import StratifiedKFold
 
 
 import numpy as np
@@ -55,7 +56,7 @@ Y = DATA['label']
 # replaced the binarizing 
 
 # Split dataset --> Trainset(4/5) en Testset(1/5)
-X_train, X_test, Y_train, Y_test = train_test_split(X, Y, train_size=0.8, random_state=None, stratify=Y)
+X_train, X_test, Y_train, Y_test = train_test_split(X, Y, train_size=0.8, stratify=Y)
 lb = preprocessing.LabelBinarizer()
 Y_test = lb.fit_transform(Y_test)
 
@@ -63,12 +64,12 @@ Y_test = lb.fit_transform(Y_test)
 
 # Removal of duplicates (Daniek)
 
-# remove 1 sample
+# remove 1 sample in X
 X_train = X_train.drop_duplicates()
-# remove same sample from labels
+# remove corresponding sample in Y
 duplicate = X_train[X_train.duplicated(keep='first')]
 duplicate_id = duplicate.index
-Y_train = Y_train.drop(duplicate_id) 
+Y_train = Y_train.drop(duplicate_id)
 
 lb = preprocessing.LabelBinarizer()
 Y_train = lb.fit_transform(Y_train)
@@ -92,15 +93,19 @@ X_train = X_train.drop(X_train[same_cols], axis=1) # 4 colums removed
 # Cross validation 10 Fold
 # Trainset --> Trainset(4/5) en Validatieset(1/5) voor cross-validatie
 X_train = X_train.to_numpy()
-#Y_train = Y_train.to_numpy()
+# Y_train = Y_train.to_numpy()
 
 all_X_train_cv = []
 all_X_validation_cv = []
 all_Y_train_cv = []
 all_Y_validation_cv = []
 
-sss = model_selection.StratifiedShuffleSplit(n_splits=10, train_size=0.8, random_state=42)
-for train_index, validation_index in sss.split(X_train, Y_train):
+kfold = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
+#sss =                 StratifiedShuffleSplit(n_splits=splits, random_state=42, test_size=2)
+#sss = model_selection.StratifiedShuffleSplit(n_splits=10, train_size=0.8, random_state=42)
+
+
+for train_index, validation_index in kfold.split(X_train, Y_train):
     X_train_cv, X_validation_cv = X_train[train_index], X_train[validation_index]
     Y_train_cv, Y_validation_cv = Y_train[train_index], Y_train[validation_index]
 
@@ -131,7 +136,7 @@ for train_index, validation_index in sss.split(X_train, Y_train):
     x = p.transform(X_train_cv)
 
     # K-NN (Jari)
-    clf = KNeighborsClassifier(n_neighbors=5)
+    clf = KNeighborsClassifier(n_neighbors=5) # Range 1-50
     clf.fit(X_train_cv, Y_train_cv)
     Y_pred_train      = clf.predict(X_train_cv)
     Y_pred_validation = clf.predict(X_validation_cv)
