@@ -216,19 +216,23 @@ seaborn.scatterplot(x=auc_n_trees, y=auc_val_values)
 # %% RANDOM FOREST
 from sklearn.model_selection import RandomizedSearchCV
 
+#eigenlijk hiervoor nog PCA, maar dat moet dan voor splitten train-val
+
 random_grid_rf = {'n_estimators': list(range(10,200,10)),
                'max_features': ['auto', 'sqrt'],
                'max_depth': list(range(10,50,10)),
                'min_samples_split': [2, 5, 10],
                'min_samples_leaf': [1, 2, 4],
                'bootstrap': [True, False]}       
+
 clf_rf = RandomForestClassifier()
 rf_random = RandomizedSearchCV(estimator = clf_rf, param_distributions = random_grid_rf, n_iter = 100, cv = 3, verbose=2, random_state=42, n_jobs = -1)
+# wat is n_jobs en random_state?
 
 rf_random.fit(X_train_cv, Y_train_cv)
 
 Y_pred_train      = rf_random.predict(X_train_cv)
-Y_pred_validation = rf_random.predict(X_validation_cv)
+Y_pred_validation = rf_random.predict(X_validation_cv)  #WAAR HAALT HIJ DEZE NU VANDAAN? 
 
 auc_train = metrics.roc_auc_score(Y_train_cv, Y_pred_train)
 auc_val = metrics.roc_auc_score(Y_validation_cv, Y_pred_validation)
@@ -329,7 +333,7 @@ for train_index, validation_index in kfold.split(X_train, Y_train):
     scaler = preprocessing.RobustScaler()
 
     scaler.fit(X_train_cv)
-    X_train_scaled      = scaler.transform(X_train_cv)
+    X_train_scaled      = scaler.transform(X_train_cv) #HIER DOEN WE NU NIKS MEER MEE
     X_validation_scaled = scaler.transform(X_validation_cv)
 
     n_features = 50 # Meerder mogelijkheden, zoen nog optimaal aantal (hyperparameter)
