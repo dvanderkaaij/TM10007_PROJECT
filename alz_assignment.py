@@ -19,10 +19,13 @@ from sklearn.model_selection import StratifiedKFold
 
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 from sklearn import preprocessing
 from sklearn.decomposition import PCA
 from missingpy import KNNImputer
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.datasets import load_digits
+from sklearn.model_selection import learning_curve
 
 # %%
 # Introduction (Eva)
@@ -65,12 +68,11 @@ Y_test = lb.fit_transform(Y_test)
 
 # Removal of duplicates (Daniek)
 
-# remove 1 sample in X
-X_train = X_train.drop_duplicates()
-# remove corresponding sample in Y
+# remove 1 sample from X and Y
 duplicate = X_train[X_train.duplicated(keep='first')]
 duplicate_id = duplicate.index
-Y_train = Y_train.drop(duplicate_id)
+X_train = X_train.drop(duplicate_id)
+Y_train = Y_train.drop(duplicate_id) 
 
 lb = preprocessing.LabelBinarizer()
 Y_train = lb.fit_transform(Y_train)
@@ -94,7 +96,7 @@ X_train = X_train.drop(X_train[same_cols], axis=1) # 4 colums removed
 # Cross validation 10 Fold
 # Trainset --> Trainset(4/5) en Validatieset(1/5) voor cross-validatie
 X_train = X_train.to_numpy()
-# Y_train = Y_train.to_numpy()
+#Y_train = Y_train.to_numpy()
 
 all_X_train_cv = []
 all_X_validation_cv = []
@@ -212,6 +214,75 @@ seaborn.scatterplot(x=auc_n_trees, y=auc_train_values)
 seaborn.scatterplot(x=auc_n_trees, y=auc_val_values)
 
         
+# %% 
+# LEARNING CURVE, COMPLEXITY
+
+# function
+def plot_learning_curve(estimator, title, X, y, axes=None, ylim=None, cv=None,
+                        n_jobs=None, train_sizes=np.linspace(.1, 1.0, 5)):
+    """
+    Generate 2 plots: the test and training learning curve, 
+    the fit times vs score curve.
+    """
+    if axes is None:
+        _, axes = plt.subplots(2, 1, figsize=(10, 15))
+
+    axes[0].set_title(title)
+    if ylim is not None:
+        axes[0].set_ylim(*ylim)
+    axes[0].set_xlabel("Training examples")
+    axes[0].set_ylabel("Score")
+
+    train_sizes, train_scores, test_scores, fit_times, _ = \
+        learning_curve(estimator, X, y, cv=cv, n_jobs=n_jobs,
+                       train_sizes=train_sizes,
+                       return_times=True)
+    train_scores_mean = np.mean(train_scores, axis=1)
+    train_scores_std = np.std(train_scores, axis=1)
+    test_scores_mean = np.mean(test_scores, axis=1)
+    test_scores_std = np.std(test_scores, axis=1)
+    fit_times_mean = np.mean(fit_times, axis=1)
+    fit_times_std = np.std(fit_times, axis=1)
+
+    # Plot learning curve
+    axes[0].grid()
+    axes[0].fill_between(train_sizes, train_scores_mean - train_scores_std,
+                         train_scores_mean + train_scores_std, alpha=0.1,
+                         color="r")
+    axes[0].fill_between(train_sizes, test_scores_mean - test_scores_std,
+                         test_scores_mean + test_scores_std, alpha=0.1,
+                         color="g")
+    axes[0].plot(train_sizes, train_scores_mean, 'o-', color="r",
+                 label="Training score")
+    axes[0].plot(train_sizes, test_scores_mean, 'o-', color="g",
+                 label="Cross-validation score")
+    axes[0].legend(loc="best")
+
+    # Plot fit_time vs score
+    axes[1].grid()
+    axes[1].plot(fit_times_mean, test_scores_mean, 'o-')
+    axes[1].fill_between(fit_times_mean, test_scores_mean - test_scores_std,
+                         test_scores_mean + test_scores_std, alpha=0.1)
+    axes[1].set_xlabel("fit_times")
+    axes[1].set_ylabel("Score")
+    axes[1].set_title("Performance of the model")
+
+    return plt
+
+# plot learning curve 
+X, y = load_digits(return_X_y=True)
+
+title = "Learning Curves (KNN)"
+
+estimator = clf
+# can be changed:
+# - clf_rf -> RandomForestClassifier(n_estimators=5, random_state=42)
+# RandomForest performs much worse -> training size too small -> KNN better option
+
+plot_learning_curve(estimator, title, X_train_cv, Y_train_cv, axes=None, ylim=None)
+
+plt.show()
+
 
 # %%
 # Classifiers
