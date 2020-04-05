@@ -80,7 +80,7 @@ Y_train = lb.fit_transform(Y_train)
 # remove 18 features
 X_train = X_train.T.drop_duplicates().T 
 
-# Removal of empty columns (Eva)
+# Removal of empty columns
 empty_cols = X_train.columns[(X_train == 0).sum() > 0.8*X_train.shape[0]]
 print(X_train.columns)
 print(f'empty: {empty_cols}') # missing: vf_Frangi_edge_energy_SR(1.0, 10.0)_SS2.0
@@ -92,63 +92,17 @@ same_cols = nunique[nunique < 3].index
 print(same_cols)
 X_train = X_train.drop(X_train[same_cols], axis=1) # 4 colums removed
 
-# %%
-# Cross validation 10 Fold
-# Trainset --> Trainset(4/5) en Validatieset(1/5) voor cross-validatie
-X_train = X_train.to_numpy()
-#Y_train = Y_train.to_numpy()
+# Scaling: Robust range matching
+scaler = preprocessing.RobustScaler()
+# Of linear
+# OF Min-Max
 
-all_X_train_cv = []
-all_X_validation_cv = []
-all_Y_train_cv = []
-all_Y_validation_cv = []
-
-kfold = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
-#sss =                 StratifiedShuffleSplit(n_splits=splits, random_state=42, test_size=2)
-#sss = model_selection.StratifiedShuffleSplit(n_splits=10, train_size=0.8, random_state=42)
-
-
-for train_index, validation_index in kfold.split(X_train, Y_train):
-    X_train_cv, X_validation_cv = X_train[train_index], X_train[validation_index]
-    Y_train_cv, Y_validation_cv = Y_train[train_index], Y_train[validation_index]
-
-    # imputation of missing values with K-nn
-    # imputer = KNNImputer(missing_values=0, n_neighbors=5, weights="uniform")
-    # DATA_imputed = imputer.fit_transform(DATA)
-
-    # Scaling: Robust range matching
-    scaler = preprocessing.RobustScaler()
-    # we hebben zoveel data dat het niet mogelijk is
-    # om elke feature te plotten en te kijken of er outliers zijn. Daarom gaan we ervan uit
-    # dat er outliers zijn en gebruiken we de RobustScaler()
-    scaler.fit(X_train_cv)
-    X_train_scaled      = scaler.transform(X_train_cv)
-    X_validation_scaled = scaler.transform(X_validation_cv)
-
-
-    all_X_train_cv.append(X_train_scaled)
-    all_X_validation_cv.append(X_validation_scaled)
-    all_Y_train_cv.append(Y_train_cv)
-    all_Y_validation_cv.append(Y_validation_cv)
-
-
-    # PCA (Jari) MOET PCA NIET MET DE X_validation_scaled ?????
-    n_features = 50 # Meerder mogelijkheden, zoen nog optimaal aantal (hyperparameter)
-    p = PCA(n_components=n_features)
-    p = p.fit(X_train_cv)
-    x = p.transform(X_train_cv)
-
-    # K-NN (Jari)
-    clf = KNeighborsClassifier(n_neighbors=5) # Range 1-50
-    clf.fit(X_train_cv, Y_train_cv)
-    Y_pred_train      = clf.predict(X_train_cv)
-    Y_pred_validation = clf.predict(X_validation_cv)
-    
-    # Metric
-    auc = metrics.roc_auc_score(Y_train_cv, Y_pred_train)
-    print(auc)
-    auc2 = metrics.roc_auc_score(Y_validation_cv, Y_pred_validation)
-    print(auc2)
+# we hebben zoveel data dat het niet mogelijk is
+# om elke feature te plotten en te kijken of er outliers zijn. Daarom gaan we ervan uit
+# dat er outliers zijn en gebruiken we de RobustScaler()
+scaler.fit(X_train)
+X_train = scaler.transform(X_train)
+#X_train = X_train.to_numpy()
 
 # %% KNN
 
@@ -157,12 +111,14 @@ best_n_neighbors = []
 AUC = []
 
 # Amount of components is 1-10
-components_list = list(range(0, 11))
+components_list = [0,1,2,3,4,5,10,20,50,100,200]
 
 for components in components_list:
     print(components)
 
     # 0 components is without PCA
+    # With PCA or without
+    # With: Find the best or not?
     x = X_train
     if components > 0:
         p = PCA(n_components=components)
@@ -183,7 +139,7 @@ for components in components_list:
     DF = pd.DataFrame(grid_search.cv_results_)
     AUC.append(max(DF['mean_test_score']))
 
-    print(f'Amount of neighbors: {best_n_neighbors[components]} with AUC: {AUC[components]}')# %% KNN
+    print(f'Amount of neighbors: {best_n_neighbors[-1]} with AUC: {AUC[-1]}')# %% KNN
 
 # %% RANDOM FOREST
 # Cross validation 10 Fold
@@ -265,20 +221,22 @@ clf_rf = RandomForestClassifier()
 rf_random = RandomizedSearchCV(estimator = clf_rf, param_distributions = random_grid_rf, n_iter = 100, cv = 3, verbose=2, random_state=42, n_jobs = -1)
 # wat is n_jobs en random_state?
 
-rf_random.fit(X_train_cv, Y_train_cv)
+DF = pd.DataFrame(rf_random.cv_results_)
 
-Y_pred_train      = rf_random.predict(X_train_cv)
-Y_pred_validation = rf_random.predict(X_validation_cv)  #WAAR HAALT HIJ DEZE NU VANDAAN? 
+rf_random.fit(X_train, Y_train)
 
-auc_train = metrics.roc_auc_score(Y_train_cv, Y_pred_train)
-auc_val = metrics.roc_auc_score(Y_validation_cv, Y_pred_validation)
+Y_pred_train      = rf_random.predict(X_train)
+# Y_pred_validation = rf_random.predict(X_validation_cv)  #WAAR HAALT HIJ DEZE NU VANDAAN? 
+
+auc_train = metrics.roc_auc_score(Y_train, Y_pred_train)
+#auc_val = metrics.roc_auc_score(Y_validation_cv, Y_pred_validation)
 
 print("Best parameters set found on development set:")
 print(rf_random.best_params_)
 print("auc train:")
 print(auc_train)
-print("auc validation:")
-print(auc_val)
+#print("auc validation:")
+#print(auc_val)
         
 # %% 
 # LEARNING CURVE, COMPLEXITY
