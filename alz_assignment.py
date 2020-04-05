@@ -213,6 +213,32 @@ plt.show()
 seaborn.scatterplot(x=auc_n_trees, y=auc_train_values)
 seaborn.scatterplot(x=auc_n_trees, y=auc_val_values)
 
+# %% RANDOM FOREST
+from sklearn.model_selection import RandomizedSearchCV
+
+random_grid_rf = {'n_estimators': list(range(10,200,10)),
+               'max_features': ['auto', 'sqrt'],
+               'max_depth': list(range(10,50,10)),
+               'min_samples_split': [2, 5, 10],
+               'min_samples_leaf': [1, 2, 4],
+               'bootstrap': [True, False]}       
+clf_rf = RandomForestClassifier()
+rf_random = RandomizedSearchCV(estimator = clf_rf, param_distributions = random_grid_rf, n_iter = 100, cv = 3, verbose=2, random_state=42, n_jobs = -1)
+
+rf_random.fit(X_train_cv, Y_train_cv)
+
+Y_pred_train      = rf_random.predict(X_train_cv)
+Y_pred_validation = rf_random.predict(X_validation_cv)
+
+auc_train = metrics.roc_auc_score(Y_train_cv, Y_pred_train)
+auc_val = metrics.roc_auc_score(Y_validation_cv, Y_pred_validation)
+
+print("Best parameters set found on development set:")
+print(rf_random.best_params_)
+print("auc train:")
+print(auc_train)
+print("auc validation:")
+print(auc_val)
         
 # %% 
 # LEARNING CURVE, COMPLEXITY
