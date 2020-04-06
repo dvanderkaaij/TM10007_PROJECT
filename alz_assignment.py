@@ -27,7 +27,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.datasets import load_digits
 from sklearn.model_selection import learning_curve
 from sklearn.model_selection import RandomizedSearchCV
-
+from sklearn.pipeline import Pipeline
 
 # %%
 # Introduction (Eva)
@@ -150,10 +150,10 @@ for components in components_list:
 
 pipe_rf = Pipeline([('pca', PCA()),
     ('rf', RandomForestClassifier())])
-score = {'f1': 'f1', 'accuracy': 'accuracy'}
+score = {'accuracy': 'accuracy'}
 
 # The set of hyperparameters to tune   
-random_grid_rf = {'pca__n_components': [10, 20, 30, 40, 50],
+random_grid_rf = {'pca__n_components': [10, 50, 100, 150, 200],
                'rf__n_estimators': list(range(10, 200, 10)),
                'rf__max_features': ['auto', 'sqrt'],
                'rf__max_depth': list(range(10, 50,10)),
