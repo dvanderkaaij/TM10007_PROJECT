@@ -257,10 +257,11 @@ pipe_svc = Pipeline([('pca', PCA()),
     ('svc', SVC())])
 score = {'accuracy': 'accuracy'}
 
-hyperparameters = {'pca__n_components': [1, 2, 4, 10, 50, 100, 150, 200],
+hyperparameters = {'pca__n_components': [0, 1, 2, 4, 10, 50, 100, 150, 200],
                    'svc__C': [0.01, 0.1, 0.5, 1, 10, 100], 
                    'svc__gamma': [ 0.1, 0.01, 0.001, 0.0001, 0.00001], 
-                   'svc__kernel': ['rbf', 'poly', 'linear', 'sigmoid', ],
+                   'svc__kernel': ['rbf', 'poly', 'sigmoid'],
+                   'svc__degree': [2,4,6],
                    'svc__max_iter': [100000]}
 
 clf_svc_pca = RandomizedSearchCV(pipe_svc, cv=10, n_jobs=-1, n_iter= 100, param_distributions=hyperparameters, scoring=score, refit='accuracy')
@@ -271,7 +272,8 @@ clf_svc_pca.fit(X_train, Y_train)
 df_results_svc_pca = pd.DataFrame(clf_svc_pca.cv_results_)
 
 print("Best parameters set found on development set:")
-print(clf_svc_pca.best_params_)
+parameters_svc = clf_svc_pca.best_params_
+print(parameters_svc)
 print('accuracy:')
 print(clf_svc_pca.best_score_)
 
