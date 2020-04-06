@@ -253,43 +253,27 @@ plt.show()
 # degree -> integer
 # coef0 -> independent term? Only significant in poly and sigmoid
 
-for train_index, validation_index in kfold.split(X_train, Y_train):
-    X_train_cv, X_validation_cv = X_train[train_index], X_train[validation_index]
-    Y_train_cv, Y_validation_cv = Y_train[train_index], Y_train[validation_index]
+pipe_svc = Pipeline([('pca', PCA()),
+    ('svc', SVC())])
+score = {'accuracy': 'accuracy'}
 
-    # Scaling: Robust range matching
-    scaler = preprocessing.RobustScaler()
+hyperparameters = {'pca__n_components': [1, 5, 10, 50, 100, 150, 200],
+                   'svc__C': [0.01, 0.1, 0.5, 1, 10, 100], 
+                   'svc__gamma': [ 0.1, 0.01, 0.001, 0.0001, 0.00001], 
+                   'svc__kernel': ['rbf', 'poly', 'linear'],
+                   'svc__max_iter': [100000]}
 
-    scaler.fit(X_train_cv)
-    X_train_scaled      = scaler.transform(X_train_cv) #HIER DOEN WE NU NIKS MEER MEE
-    X_validation_scaled = scaler.transform(X_validation_cv)
+clf_svc_pca = RandomizedSearchCV(pipe_svc, cv=3, n_jobs=-1, n_iter= 100, param_distributions=hyperparameters, scoring=score, refit='accuracy')
 
-    n_features = 50 # Meerder mogelijkheden, zoen nog optimaal aantal (hyperparameter)
-    p = PCA(n_components=n_features)
-    p = p.fit(X_train_cv)
-    x = p.transform(X_train_cv)
-    
-    # SVC
-    parameters = [{'kernel': ['rbf'], 'gamma': [1e-3, 1e-4],
-               'C': [1, 10, 100, 1000]},
-              {'kernel': ['linear'], 'C': [1, 10, 100, 1000]}]
-    svc = SVC()
-    clf = GridSearchCV(svc, parameters)
-    clf.fit(X_train_cv, Y_train_cv)
+clf_svc_pca.fit(X_train, Y_train)
 
-    y_pred_train_svc = clf.predict(X_train_cv)
-    Y_pred_validation_svc = clf.predict(X_validation_cv)
+# DataFrame of the results with the different hyperparameters
+df_results_svc_pca = pd.DataFrame(clf_svc_pca.cv_results_)
 
-    # metric for SVC
-    print("Best parameters set found on development set:")
-    print()
-    print(clf.best_params_)
-    auc_train = metrics.roc_auc_score(Y_train_cv, Y_pred_train)
-    auc_val = metrics.roc_auc_score(Y_validation_cv, Y_pred_validation)
-    print("auc train:")
-    print(auc_train)
-    print("auc validation:")
-    print(auc_val)
+print("Best parameters set found on development set:")
+print(clf_svc_pca.best_params_)
+print('accuracy:')
+print(clf_svc_pca.best_score_)
 
 # %%2. Random Forest (Eva)
 
