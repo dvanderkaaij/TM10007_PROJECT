@@ -257,13 +257,13 @@ pipe_svc = Pipeline([('pca', PCA()),
     ('svc', SVC())])
 score = {'accuracy': 'accuracy'}
 
-hyperparameters = {'pca__n_components': [1, 5, 10, 50, 100, 150, 200],
+hyperparameters = {'pca__n_components': [1, 2, 4, 10, 50, 100, 150, 200],
                    'svc__C': [0.01, 0.1, 0.5, 1, 10, 100], 
                    'svc__gamma': [ 0.1, 0.01, 0.001, 0.0001, 0.00001], 
-                   'svc__kernel': ['rbf', 'poly', 'linear'],
+                   'svc__kernel': ['rbf', 'poly', 'linear', 'sigmoid', ],
                    'svc__max_iter': [100000]}
 
-clf_svc_pca = RandomizedSearchCV(pipe_svc, cv=3, n_jobs=-1, n_iter= 100, param_distributions=hyperparameters, scoring=score, refit='accuracy')
+clf_svc_pca = RandomizedSearchCV(pipe_svc, cv=10, n_jobs=-1, n_iter= 100, param_distributions=hyperparameters, scoring=score, refit='accuracy')
 
 clf_svc_pca.fit(X_train, Y_train)
 
