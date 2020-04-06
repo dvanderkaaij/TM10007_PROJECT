@@ -26,6 +26,8 @@ from missingpy import KNNImputer
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.datasets import load_digits
 from sklearn.model_selection import learning_curve
+from sklearn.model_selection import RandomizedSearchCV
+
 
 # %%
 # Introduction (Eva)
@@ -141,103 +143,35 @@ for components in components_list:
 
     print(f'Amount of neighbors: {best_n_neighbors[-1]} with AUC: {AUC[-1]}')# %% KNN
 
-# %% RANDOM FOREST
-# Cross validation 10 Fold
-# belangrijkste hyperparameters n_components (trees) and max_features (the numer of features
-# considered for splitting at eacht leaf node)
-# max_depth = max number of levels in each decision tree
-# min_samples_split 
-# min_samples_leaf
-# bootstrap - method for sampling datapoints (with or without replacement)
-# Aantal trees bepalen aan de hand van een grafiek --> nog goeie van maken
-
-import matplotlib.pyplot as plt
-import numpy as np
-import seaborn
-
-kfold = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
-auc_train_values = []
-auc_val_values = []
-auc_n_trees = []
-
-for train_index, validation_index in kfold.split(X_train, Y_train):
-    X_train_cv, X_validation_cv = X_train[train_index], X_train[validation_index]
-    Y_train_cv, Y_validation_cv = Y_train[train_index], Y_train[validation_index]
-
-    # Scaling: Robust range matching
-    scaler = preprocessing.RobustScaler()
-
-    scaler.fit(X_train_cv)
-    X_train_scaled      = scaler.transform(X_train_cv)
-    X_validation_scaled = scaler.transform(X_validation_cv)
-
-    n_features = 50 # Meerder mogelijkheden, zoen nog optimaal aantal (hyperparameter)
-    p = PCA(n_components=n_features)
-    p = p.fit(X_train_cv)
-    x = p.transform(X_train_cv)
-
-    n_trees = [1, 5, 10, 20, 50, 100] # Moeten we beperken om overtraining te voorkomen
-    #moeten we nog iets met random_state?
-    # Wat is die criterion?
-    
-    for index, tree in enumerate(n_trees): 
-        clf_rf = RandomForestClassifier(n_estimators=tree)
-        
-        clf_rf.fit(X_train_cv, Y_train_cv)
-        Y_pred_train      = clf_rf.predict(X_train_cv)
-        Y_pred_validation = clf_rf.predict(X_validation_cv)
-       
-        # Metric
-        auc_train = metrics.roc_auc_score(Y_train_cv, Y_pred_train)
-        auc_val = metrics.roc_auc_score(Y_validation_cv, Y_pred_validation)
-        print(tree)
-        print(auc_val)
-        auc_train_values.append(auc_train) 
-        auc_n_trees.append(tree)
-        auc_val_values.append(auc_val)
-
-plt.plot(auc_n_trees, auc_train_values)
-plt.plot(auc_n_trees, auc_val_values) 
-plt.show()
-
-seaborn.scatterplot(x=auc_n_trees, y=auc_train_values)
-seaborn.scatterplot(x=auc_n_trees, y=auc_val_values)
-
-
 
 # %% RANDOM FOREST
-from sklearn.model_selection import RandomizedSearchCV
+# Create pipeline a pipeline to search for the best
+# hyperparameters for the combination of PCA and RandomForestClassifier
 
-#eigenlijk hiervoor nog PCA, maar dat moet dan voor splitten train-val
+pipe_rf = Pipeline([('pca', PCA()),
+    ('rf', RandomForestClassifier())])
+score = {'f1': 'f1', 'accuracy': 'accuracy'}
 
-random_grid_rf = {'n_estimators': list(range(10,200,10)),
-               'max_features': ['auto', 'sqrt'],
-               'max_depth': list(range(10,50,10)),
-               'min_samples_split': [2, 5, 10],
-               'min_samples_leaf': [1, 2, 4],
-               'bootstrap': [True, False]}       
+# The set of hyperparameters to tune   
+random_grid_rf = {'pca__n_components': [10, 20, 30, 40, 50],
+               'rf__n_estimators': list(range(10, 200, 10)),
+               'rf__max_features': ['auto', 'sqrt'],
+               'rf__max_depth': list(range(10, 50,10)),
+               'rf__min_samples_split': [2, 5, 10],
+               'rf__min_samples_leaf': [1, 2, 4],
+               'rf__bootstrap': [True, False]}     
 
-clf_rf = RandomForestClassifier()
-rf_random = RandomizedSearchCV(estimator = clf_rf, param_distributions = random_grid_rf, n_iter = 100, cv = 3, verbose=2, random_state=42, n_jobs = -1)
-# wat is n_jobs en random_state?
+clf_rf_pca = RandomizedSearchCV(pipe_rf, cv=3, n_jobs=-1, n_iter = 100, param_distributions=random_grid_rf, scoring=score, refit='accuracy')
 
-DF = pd.DataFrame(rf_random.cv_results_)
+# Train RandomForest classifier
+clf_rf_pca.fit(X_train, Y_train)
 
-rf_random.fit(X_train, Y_train)
-
-Y_pred_train      = rf_random.predict(X_train)
-# Y_pred_validation = rf_random.predict(X_validation_cv)  #WAAR HAALT HIJ DEZE NU VANDAAN? 
-
-auc_train = metrics.roc_auc_score(Y_train, Y_pred_train)
-#auc_val = metrics.roc_auc_score(Y_validation_cv, Y_pred_validation)
+# DataFrame of the results with the different hyperparameters
+df_results_rf_pca = pd.DataFrame(clf_rf_pca.cv_results_)
 
 print("Best parameters set found on development set:")
-print(rf_random.best_params_)
-print("auc train:")
-print(auc_train)
-#print("auc validation:")
-#print(auc_val)
-        
+print(clf_rf_pca.best_params_)
+
 # %% 
 # LEARNING CURVE, COMPLEXITY
 
