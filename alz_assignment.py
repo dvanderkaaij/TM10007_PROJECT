@@ -173,7 +173,7 @@ PIPE_SVM = Pipeline([('pca', PCA()),
 PARAMETERS_SVM = {'pca__n_components': [1, 2, 3, 4, 5, 10, 20, 50, 100, 150, 200],  # Good
                   'svc__C': [0.01, 0.1, 0.5, 1, 10, 100],
                #  'svc__gamma': [0.1, 0.01, 0.001, 0.0001, 0.00001],
-                  'svc__gamma': ['scale', 'auto'],
+                  #'svc__gamma': ['scale', 'auto'],
                   'svc__kernel': ['rbf', 'poly', 'sigmoid'],  # Good
                   'svc__degree': [2, 4, 6],
                   'svc__max_iter': [100000]}  # Good
@@ -206,11 +206,11 @@ def plot_learning_curve(estimator, title, X, y, axes=None, ylim=None, cv=None,
     the fit times vs score curve.
     """
     if axes is None:
-        _, axes = plt.subplots(2, 1, figsize=(10, 15))
+        _, axes = plt.subplots(1, 2, figsize=(10, 15))
 
     axes[0].set_title(title)
     if ylim is not None:
-        axes[0].set_ylim(*ylim)
+        axes.set_ylim(*ylim)
     axes[0].set_xlabel("Training examples")
     axes[0].set_ylabel("Score")
 
@@ -250,16 +250,31 @@ def plot_learning_curve(estimator, title, X, y, axes=None, ylim=None, cv=None,
 
     return plt
 
-# plot learning curve 
+# plot learning curves
+fig, axes = plt.subplots(2, 3, figsize=(15, 10))
 X, y = load_digits(return_X_y=True)
 
 title = "Learning Curves (KNN)"
+plot_learning_curve(CLF_KNN, title, X_TRAIN, Y_TRAIN, axes=axes[:, 0], ylim=None)
 
-estimator = clf
-# can be changed:
-# - clf_rf -> RandomForestClassifier(n_estimators=5, random_state=42)
-# RandomForest performs much worse -> training size too small -> KNN better option
+title = "Learning Curves (RF)"
+plot_learning_curve(CLF_RF, title, X_TRAIN, Y_TRAIN, axes=axes[:, 1], ylim=None)
 
-plot_learning_curve(estimator, title, X_train_cv, Y_train_cv, axes=None, ylim=None)
+title = "Learning Curves (SVM)"
+plot_learning_curve(CLF_SVM, title, X_TRAIN, Y_TRAIN, axes=axes[:, 2], ylim=None)
 
 plt.show()
+
+# in for-loop
+X, y = load_digits(return_X_y=True)
+CLFS = [CLF_KNN, CLF_RF, CLF_SVM]
+TITLE_CLF = [KNN, RF, SVM]
+
+fig, axes = plt.subplots(2, 3, figsize=(15, 10))
+num = 0
+for CLF in CLFS
+    title = f'Learning Curve {TITLE_CLF}'
+    plot_learning_curve(CLF, title, X_TRAIN, Y_TRAIN, axes=axes[:, 0], ylim=None)
+    num +=1
+plt.show()
+# %%
