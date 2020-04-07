@@ -15,12 +15,9 @@ from adni.load_data import load_data
 from sklearn import metrics
 from sklearn import preprocessing
 from sklearn.model_selection import StratifiedKFold
-
-
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from sklearn import preprocessing
 from sklearn.decomposition import PCA
 from missingpy import KNNImputer
 from sklearn.neighbors import KNeighborsClassifier
@@ -30,54 +27,49 @@ from sklearn.model_selection import RandomizedSearchCV
 from sklearn.pipeline import Pipeline
 
 # %%
-# Introduction (Eva)
-# An introduction concerning the (clinical) problem to be solved.
-# 200-300 words
-
-# %%
 # Load data
 DATA_original = load_data()
 DATA = load_data()
 
 # %%
-# Describe data (Jari)
-AMOUNT_SAMPLES = len(DATA.index)
-AMOUNT_FEATURES = len(DATA.columns)
+# Describe data
+AMOUNT_SAMPLES = len(DATA_original.index)
+AMOUNT_FEATURES = len(DATA_original.columns)
 print(f'The number of samples: {AMOUNT_SAMPLES}')
 print(f'The number of columns: {AMOUNT_FEATURES}')
 
-AMOUNT_AD = sum(DATA['label'] == 'AD')
-AMOUNT_CN = sum(DATA['label'] == 'CN')
+AMOUNT_AD = sum(DATA_original['label'] == 'AD')
+AMOUNT_CN = sum(DATA_original['label'] == 'CN')
 RATIO_AD = AMOUNT_AD/AMOUNT_SAMPLES
 RATIO_CN = AMOUNT_CN/AMOUNT_SAMPLES
 print(f'The number of AD samples: {AMOUNT_AD} ({round(RATIO_AD*100,2)}%)')
 print(f'The number of CN samples: {AMOUNT_CN} ({round(RATIO_CN*100,2)}%)')
 
-# %% 
-# Extract labels
+# %%
+# Extract information
 # Get dataframe X with all features and dataframe Y with labels
 X = DATA
 X = X.drop(['label'], axis=1)
 Y = DATA['label']
-# replaced the binarizing 
 
 # Split dataset --> Trainset(4/5) en Testset(1/5)
 X_train, X_test, Y_train, Y_test = train_test_split(X, Y, train_size=0.8, stratify=Y)
-lb = preprocessing.LabelBinarizer()
-Y_test = lb.fit_transform(Y_test)
+
+# Binarize labels in testset
+LB = preprocessing.LabelBinarizer()
+Y_test = LB.fit_transform(Y_test)
 
 # %% Preprocessing
 
-# Removal of duplicates (Daniek)
+# Removal of duplicates in X and corresponding Y (1 sample)
+DUPLICATES = X_train[X_train.duplicated(keep='first')]
+DUPLICATES_ID = DUPLICATES.index
+X_train = X_train.drop(DUPLICATES_ID)
+Y_train = Y_train.drop(DUPLICATES_ID)
 
-# remove 1 sample from X and Y
-duplicate = X_train[X_train.duplicated(keep='first')]
-duplicate_id = duplicate.index
-X_train = X_train.drop(duplicate_id)
-Y_train = Y_train.drop(duplicate_id) 
-
-lb = preprocessing.LabelBinarizer()
-Y_train = lb.fit_transform(Y_train)
+# Binarize labels in trainset
+LB = preprocessing.LabelBinarizer()
+Y_train = LB.fit_transform(Y_train)
 
 # remove 18 features
 X_train = X_train.T.drop_duplicates().T 
@@ -96,15 +88,8 @@ X_train = X_train.drop(X_train[same_cols], axis=1) # 4 colums removed
 
 # Scaling: Robust range matching
 scaler = preprocessing.RobustScaler()
-# Of linear
-# OF Min-Max
-
-# we hebben zoveel data dat het niet mogelijk is
-# om elke feature te plotten en te kijken of er outliers zijn. Daarom gaan we ervan uit
-# dat er outliers zijn en gebruiken we de RobustScaler()
 scaler.fit(X_train)
 X_train = scaler.transform(X_train)
-#X_train = X_train.to_numpy()
 
 # %% KNN
 
@@ -112,15 +97,12 @@ X_train = scaler.transform(X_train)
 best_n_neighbors = []
 AUC = []
 
-# Amount of components is 1-10
-components_list = [0,1,2,3,4,5,10,20,50,100,200]
+# Amount of principal components (0 is without PCA)
+components_list = [1, 2, 3, 4, 5, 10, 20, 50, 100, 0]
 
 for components in components_list:
-    print(components)
+    print(f'PCA with {components} components')
 
-    # 0 components is without PCA
-    # With PCA or without
-    # With: Find the best or not?
     x = X_train
     if components > 0:
         p = PCA(n_components=components)
@@ -128,21 +110,23 @@ for components in components_list:
         x = p.transform(X_train)
 
     knn = KNeighborsClassifier()
-    parameters = {"n_neighbors": list(range(1, 51, 2))} # 1-50 NN
+    parameters = {'n_neighbors': list(range(1, 99, 2)),
+                  'weights' : ['uniform', 'distance']}
 
     cv_10fold = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
 
     grid_search = model_selection.GridSearchCV(knn, parameters, cv=cv_10fold, scoring='roc_auc')
     grid_search.fit(x, Y_train)
 
-    clf = grid_search.best_estimator_
-    best_n_neighbors.append(clf.n_neighbors)
+    clf_knn = grid_search.best_estimator_
+    best_n_neighbors.append(clf_knn.n_neighbors)
 
     DF = pd.DataFrame(grid_search.cv_results_)
     AUC.append(max(DF['mean_test_score']))
 
-    print(f'Amount of neighbors: {best_n_neighbors[-1]} with AUC: {AUC[-1]}')# %% KNN
-
+    print("Best parameters set found on development set:")
+    print(grid_search.best_params_)
+    print(f'Amount of neighbors: {best_n_neighbors[-1]} with AUC: {AUC[-1]}')
 
 # %% RANDOM FOREST
 # Create pipeline a pipeline to search for the best
@@ -152,8 +136,8 @@ pipe_rf = Pipeline([('pca', PCA()),
     ('rf', RandomForestClassifier())])
 score = {'accuracy': 'accuracy'}
 
-# The set of hyperparameters to tune   
-random_grid_rf = {'pca__n_components': [10, 50, 100, 150, 200],
+# The set of hyperparameters to tune
+parameters_rf = {'pca__n_components': [10, 50, 100, 150, 200],
                'rf__n_estimators': list(range(10, 200, 10)),
                'rf__max_features': ['auto', 'sqrt'],
                'rf__max_depth': list(range(10, 50,10)),
@@ -161,7 +145,7 @@ random_grid_rf = {'pca__n_components': [10, 50, 100, 150, 200],
                'rf__min_samples_leaf': [1, 2, 4],
                'rf__bootstrap': [True, False]}     
 
-clf_rf_pca = RandomizedSearchCV(pipe_rf, cv=3, n_jobs=-1, n_iter = 100, param_distributions=random_grid_rf, scoring=score, refit='accuracy')
+clf_rf_pca = RandomizedSearchCV(pipe_rf, cv=3, n_jobs=-1, n_iter = 100, param_distributions=parameters_rf, scoring=score, refit='accuracy')
 
 # Train RandomForest classifier
 clf_rf_pca.fit(X_train, Y_train)
@@ -276,50 +260,5 @@ parameters_svc = clf_svc_pca.best_params_
 print(parameters_svc)
 print('accuracy:')
 print(clf_svc_pca.best_score_)
-
-# %%2. Random Forest (Eva)
-
-# Parameters:
-# n_estimators -> number of trees
-# bootstrap -> False or True, determines if samples are drawn with replacement or not
-# class_weight -> if not given, all classes have weight one
-# max_features -> when looking at a split
-
-n_trees = [1, 5, 10, 50, 100] # Moeten we beperken om overtraining te voorkomen
-clf_rf = RandomForestClassifier(n_estimators=n_trees, criterion='gini') # Wati is die criterion?
-clf_rf.fit(X_train_cv, y_train_cv)
-y_pred_rf = clf_rf.predict(X_train_cv)
-
-# Bootstrapping True/False?
-# Bij voorkeur geen class weigh, denk ik?
-# Zeker wel feature importance (ranglijst met belangrijkste features)
-importances = clf_rf.feature_importances_
-std = np.std([tree.feature_importances_ for tree in forest.estimators_],
-             axis=0)
-indices = np.argsort(importances)[::-1]
-
-# 3. K-Nearest Neighbour
-
-
-
-# %%
-# Experimental and evaluation setup
-# Beschrijven wat we doen en waarom
-
-# %%
-# Statistics
-# Accuracy, AUC, F1score, Precision, Recall
-   # auc=metrics.roc_auc_score(Y1, y_score)
-   # accuracy=metrics.accuracy_score(Y1, y_pred)
-   # F1=metrics.f1_score(Y1,y_pred)
-   # precision=metrics.precision_score(Y1,y_pred)
-   # recall=metrics.recall_score(Y1, y_pred)
-
-   # print(type(clf))
-   # print('Acc:' +str(accuracy))
-   # print('AUC:' +str(auc))
-   # print('F1:' +str(F1))
-   # print('precision:' +str(precision))
-   # print('recall:' +str(recall))
 
 # %%
