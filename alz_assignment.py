@@ -19,6 +19,7 @@ from sklearn.model_selection import StratifiedKFold
 from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.model_selection import learning_curve
 from sklearn.model_selection import RandomizedSearchCV
+from sklearn.metrics import roc_auc_score
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -52,15 +53,20 @@ Y = DATA['label']
 # Split dataset --> Trainset(4/5) en Testset(1/5)
 CV_5FOLD = StratifiedKFold(n_splits=5)
 
+# List of AUC scores
+AUC_KNN = []
+AUC_RF = [] 
+AUC_SVM = []
+
 # Loop over the folds
 for train_index, test_index in CV_5FOLD.split(X, Y):
     
     # Split the data properly
-    X_TRAIN = X[train_index]
-    Y_TRAIN = Y[train_index]
+    X_TRAIN = X.iloc[train_index]
+    Y_TRAIN = Y.iloc[train_index]
 
-    X_TEST = X[test_index]
-    Y_TEST = Y[test_index]
+    X_TEST = X.iloc[test_index]
+    Y_TEST = Y.iloc[test_index]
 
     # X_TRAIN, X_TEST, Y_TRAIN, Y_TEST = train_test_split(X, Y, train_size=0.8, stratify=Y)
 
@@ -163,6 +169,15 @@ for train_index, test_index in CV_5FOLD.split(X, Y):
 
     CLF_RF_BEST = CLF_RF.best_estimator_
     # The set of hyperparameters to tune
+    
+    # %% Support Vector Machine (SVM)
+
+    # Create pipeline a pipeline to search for the best
+    # hyperparameters for the combination of PCA and RandomForestClassifier
+    PIPE_SVM = Pipeline([('pca', PCA()),
+                        ('svc', SVC())])
+
+    # The set of hyperparameters to tune
     PARAMETERS_SVM = [{'svc__kernel': ['rbf'], 'svc__gamma': [0.1, 0.01, 0.001, 0.0001],
                     'svc__C': [0.01, 0.1, 0.5, 1, 10, 100], 'svc__max_iter': [1000],
                     'pca__n_components': [1, 2, 3, 4, 5, 10, 20, 50, 100, 150, 200]},
@@ -172,22 +187,6 @@ for train_index, test_index in CV_5FOLD.split(X, Y):
                    {'svc__kernel': ['poly'], 'svc__degree': [2, 3, 4, 5],
                     'svc__C': [0.01, 0.1, 0.5, 1, 10, 100], 'svc__max_iter': [1000],
                     'pca__n_components': [1, 2, 3, 4, 5, 10, 20, 50, 100, 150, 200]}]
-
-    # %% Support Vector Machine (SVM)
-
-    # Create pipeline a pipeline to search for the best
-    # hyperparameters for the combination of PCA and RandomForestClassifier
-    PIPE_SVM = Pipeline([('pca', PCA()),
-                        ('svc', SVC())])
-
-    # The set of hyperparameters to tune
-    PARAMETERS_SVM = {'pca__n_components': [1, 2, 3, 4, 5, 10, 20, 50, 100, 150, 200],  # Good
-                      'svc__C': [0.01, 0.1, 0.5, 1, 10, 100],
-                      # 'svc__gamma': [0.1, 0.01, 0.001, 0.0001, 0.00001],
-                      # 'svc__gamma': ['scale', 'auto'],
-                      'svc__kernel': ['rbf', 'poly', 'sigmoid'],  # Good
-                      'svc__degree': [2, 4, 6],
-                      'svc__max_iter': [100000]}  # Good
 
     CLF_SVM = RandomizedSearchCV(PIPE_SVM, cv=CV_10, n_jobs=-1, n_iter=100,
                                  param_distributions=PARAMETERS_SVM,
@@ -204,6 +203,21 @@ for train_index, test_index in CV_5FOLD.split(X, Y):
     print(f'Outcome {REFIT}: {CLF_SVM.best_score_}')
 
     CLF_SVM_BEST = CLF_SVM.best_estimator_
+
+    CLF_KNN_BEST.fit(X_TRAIN, Y_TRAIN)
+    CLF_RF_BEST.fit(X_TRAIN, Y_TRAIN)
+    CLF_SVM_BEST.fit(X_TRAIN, Y_TRAIN)
+
+    KNN_prediction = CLF_KNN_BEST.predict_proba(X_TEST)
+    RF_prediction = CLF_RF_BEST.predict_proba(X_TEST)
+    SVM_prediction = CLF_SVM_BEST.predict_proba(X_TEST)
+
+    AUC_KNN.append(roc_auc_score(KNN_prediction, Y_TEST))
+    AUC_RF.append(roc_auc_score(RF_prediction, Y_TEST))
+    AUC_SVM.append(roc_auc_score(SVM_prediction, Y_TEST))
+
+# final results
+df_results = pd.DataFrame(AUC_KNN, AUC_RF, AUC_SVM)
 
 # %% 
 # LEARNING CURVES FOR COMPLEXITY
@@ -259,7 +273,6 @@ def plot_learning_curve(estimator, title, X, y, axes=None, ylim=None, cv=None,
     axes[1].set_title("Performance of the model")
 
     return plt
-
 
 # plot
 X, y = load_digits(return_X_y=True)
