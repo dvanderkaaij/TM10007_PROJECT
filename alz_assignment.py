@@ -15,7 +15,6 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.decomposition import PCA
-from sklearn.model_selection import train_test_split
 from sklearn.model_selection import StratifiedKFold
 from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.model_selection import learning_curve
@@ -31,13 +30,13 @@ DATA = load_data()
 
 # %%
 # Describe data
-AMOUNT_SAMPLES = len(DATA_ORIGINAL.index)
-AMOUNT_FEATURES = len(DATA_ORIGINAL.columns)
+AMOUNT_SAMPLES = len(DATA.index)
+AMOUNT_FEATURES = len(DATA.columns)
 print(f'The number of samples: {AMOUNT_SAMPLES}')
 print(f'The number of columns: {AMOUNT_FEATURES}')
 
-AMOUNT_AD = sum(DATA_ORIGINAL['label'] == 'AD')
-AMOUNT_CN = sum(DATA_ORIGINAL['label'] == 'CN')
+AMOUNT_AD = sum(DATA['label'] == 'AD')
+AMOUNT_CN = sum(DATA['label'] == 'CN')
 RATIO_AD = AMOUNT_AD/AMOUNT_SAMPLES
 RATIO_CN = AMOUNT_CN/AMOUNT_SAMPLES
 print(f'The number of AD samples: {AMOUNT_AD} ({round(RATIO_AD*100,2)}%)')
@@ -51,141 +50,154 @@ X = X.drop(['label'], axis=1)
 Y = DATA['label']
 
 # Split dataset --> Trainset(4/5) en Testset(1/5)
-X_TRAIN, X_TEST, Y_TRAIN, Y_TEST = train_test_split(X, Y, train_size=0.8, stratify=Y)
+CV_5FOLD = StratifiedKFold(n_splits=5)
 
-# Binarize labels in testset
-LB = preprocessing.LabelBinarizer()
-Y_TEST = LB.fit_transform(Y_TEST)
+# Loop over the folds
+for train_index, test_index in CV_5FOLD.split(X, Y):
+    
+    # Split the data properly
+    X_TRAIN = X[train_index]
+    Y_TRAIN = Y[train_index]
 
-# %% Preprocessing
+    X_TEST = X[test_index]
+    Y_TEST = Y[test_index]
 
-# Remove duplicates in X and corresponding Y 
-DUPLICATES = X_TRAIN[X_TRAIN.duplicated(keep='first')]
-DUPLICATES_ID = DUPLICATES.index
-X_TRAIN = X_TRAIN.drop(DUPLICATES_ID)
-Y_TRAIN = Y_TRAIN.drop(DUPLICATES_ID)
+    # Split dataset --> Trainset(4/5) en Testset(1/5)
+    # X_TRAIN, X_TEST, Y_TRAIN, Y_TEST = train_test_split(X, Y, train_size=0.8, stratify=Y)
 
-# Binarize labels in trainset
-LB = preprocessing.LabelBinarizer()
-Y_TRAIN = LB.fit_transform(Y_TRAIN)
+    # Binarize labels in testset
+    LB = preprocessing.LabelBinarizer()
+    Y_TEST = LB.fit_transform(Y_TEST)
 
-# Remove duplicate features
-X_TRAIN = X_TRAIN.T.drop_duplicates().T
+    # %% Preprocessing
 
-# Remove empty columns
-EMPTY_COLS = X_TRAIN.columns[(X_TRAIN == 0).sum() > 0.8*X_TRAIN.shape[0]]
-X_TRAIN = X_TRAIN.drop(X_TRAIN[EMPTY_COLS], axis=1)
+    # Remove duplicates in X and corresponding Y 
+    DUPLICATES = X_TRAIN[X_TRAIN.duplicated(keep='first')]
+    DUPLICATES_ID = DUPLICATES.index
+    X_TRAIN = X_TRAIN.drop(DUPLICATES_ID)
+    Y_TRAIN = Y_TRAIN.drop(DUPLICATES_ID)
 
-# Removal of columns with same values
-NUNIQUE = X_TRAIN.apply(pd.Series.nunique)
-SAME_COLS = NUNIQUE[NUNIQUE < 3].index
-X_TRAIN = X_TRAIN.drop(X_TRAIN[SAME_COLS], axis=1)
+    # Binarize labels in trainset
+    LB = preprocessing.LabelBinarizer()
+    Y_TRAIN = LB.fit_transform(Y_TRAIN)
 
-# Scaling: Robust range matching
-SCALER = preprocessing.RobustScaler()
-SCALER.fit(X_TRAIN)
-X_TRAIN = SCALER.transform(X_TRAIN)
+    # Remove duplicate features
+    X_TRAIN = X_TRAIN.T.drop_duplicates().T
 
-# Classifiers
-SCORE = {'accuracy': 'accuracy',
-         'roc_auc': 'roc_auc'}
-REFIT = 'roc_auc'
+    # Remove empty columns
+    EMPTY_COLS = X_TRAIN.columns[(X_TRAIN == 0).sum() > 0.8*X_TRAIN.shape[0]]
+    X_TRAIN = X_TRAIN.drop(X_TRAIN[EMPTY_COLS], axis=1)
 
-CV_10 = StratifiedShuffleSplit(n_splits=10, test_size=0.10, train_size=0.90)
+    # Removal of columns with same values
+    NUNIQUE = X_TRAIN.apply(pd.Series.nunique)
+    SAME_COLS = NUNIQUE[NUNIQUE < 3].index
+    X_TRAIN = X_TRAIN.drop(X_TRAIN[SAME_COLS], axis=1)
 
-# %% K-Nearest Neighbors (KNN)
+    # Scaling: Robust range matching
+    SCALER = preprocessing.RobustScaler()
+    SCALER.fit(X_TRAIN)
+    X_TRAIN = SCALER.transform(X_TRAIN)
 
-# Create pipeline a pipeline to search for the best
-# hyperparameters for the combination of PCA and Nearest Neighbors
-PIPE_KNN = Pipeline([('pca', PCA()),
-                     ('knn', KNeighborsClassifier())])
+    # Classifiers
+    SCORE = {'accuracy': 'accuracy',
+             'roc_auc': 'roc_auc'}
+    REFIT =  'roc_auc'
 
-# The set of hyperparameters to tune
-PARAMETERS_KNN = {'pca__n_components': [1, 2, 3, 4, 5, 10, 20, 50, 100, 150, 200],
-                  'knn__n_neighbors': list(range(1, 99, 2)),
-                  'knn__weights': ['uniform', 'distance']}
+    CV_10 = StratifiedShuffleSplit(n_splits=10, test_size=0.10, train_size=0.90)
 
-CLF_KNN = RandomizedSearchCV(PIPE_KNN, cv=CV_10, n_jobs=-1, n_iter=100,
-                             param_distributions=PARAMETERS_KNN,
-                             scoring=SCORE, refit=REFIT)
+    # %% K-Nearest Neighbors (KNN)
 
-# Train
-CLF_KNN.fit(X_TRAIN, Y_TRAIN)
+    # Create pipeline a pipeline to search for the best
+    # hyperparameters for the combination of PCA and Nearest Neighbors
+    PIPE_KNN = Pipeline([('pca', PCA()),
+                         ('knn', KNeighborsClassifier())])
 
-# DataFrame of the results with the different hyperparameters
-DF_KNN = pd.DataFrame(CLF_KNN.cv_results_)
+    # The set of hyperparameters to tune
+    PARAMETERS_KNN = {'pca__n_components': [1, 2, 3, 4, 5, 10, 20, 50, 100, 150, 200],
+                      'knn__n_neighbors': list(range(1, 99, 2)),
+                      'knn__weights': ['uniform', 'distance']}
 
-print("NN Best parameters set found on development set:")
-print(CLF_KNN.best_params_)
-print(f'Outcome {REFIT}: {CLF_KNN.best_score_}')
+    CLF_KNN = RandomizedSearchCV(PIPE_KNN, cv=CV_10, n_jobs=-1, n_iter=100,
+                                 param_distributions=PARAMETERS_KNN,
+                                 scoring=SCORE, refit=REFIT)
 
-CLF_KNN_BEST = CLF_KNN.best_estimator_
+    # Train
+    CLF_KNN.fit(X_TRAIN, Y_TRAIN)
 
-# %% Random Forrest (RF)
-# Create pipeline a pipeline to search for the best
-# hyperparameters for the combination of PCA and RandomForestClassifier
-PIPE_RF = Pipeline([('pca', PCA()),
-                    ('rf', RandomForestClassifier())])
+    # DataFrame of the results with the different hyperparameters
+    DF_KNN = pd.DataFrame(CLF_KNN.cv_results_)
 
-# The set of hyperparameters to tune
-PARAMETERS_RF = {'pca__n_components': [1, 2, 3, 4, 5, 10, 20, 50, 100, 150, 200],
-                 'rf__n_estimators': list(range(10, 200, 10)),
-                 'rf__max_features': ['auto', 'sqrt'],
-                 'rf__max_depth': list(range(10, 50, 10)),
-                 'rf__min_samples_split': [2, 5, 10],
-                 'rf__min_samples_leaf': [1, 2, 4],
-                 'rf__bootstrap': [True, False]}
+    print("NN Best parameters set found on development set:")
+    print(CLF_KNN.best_params_)
+    print(f'Outcome {REFIT}: {CLF_KNN.best_score_}')
 
-CLF_RF = RandomizedSearchCV(PIPE_RF, cv=CV_10, n_jobs=-1, n_iter=100,
-                            param_distributions=PARAMETERS_RF,
-                            scoring=SCORE, refit=REFIT)
+    CLF_KNN_BEST = CLF_KNN.best_estimator_
 
-# Train
-CLF_RF.fit(X_TRAIN, Y_TRAIN)
+    # %% Random Forrest (RF)
+    # Create pipeline a pipeline to search for the best
+    # hyperparameters for the combination of PCA and RandomForestClassifier
+    PIPE_RF = Pipeline([('pca', PCA()),
+                        ('rf', RandomForestClassifier())])
 
-# DataFrame of the results with the different hyperparameters
-DF_RF = pd.DataFrame(CLF_RF.cv_results_)
+    # The set of hyperparameters to tune
+    PARAMETERS_RF = {'pca__n_components': [1, 2, 3, 4, 5, 10, 20, 50, 100, 150, 200],
+                     'rf__n_estimators': list(range(10, 200, 10)),
+                     'rf__max_features': ['auto', 'sqrt'],
+                     'rf__max_depth': list(range(10, 50, 10)),
+                     'rf__min_samples_split': [2, 5, 10],
+                     'rf__min_samples_leaf': [1, 2, 4],
+                     'rf__bootstrap': [True, False]}
 
-print("RF Best parameters set found on development set:")
-print(CLF_RF.best_params_)
-print(f'Outcome {REFIT}: {CLF_RF.best_score_}')
+    CLF_RF = RandomizedSearchCV(PIPE_RF, cv=CV_10, n_jobs=-1, n_iter=100,
+                                param_distributions=PARAMETERS_RF,
+                                scoring=SCORE, refit=REFIT)
 
-CLF_RF_BEST = CLF_RF.best_estimator_
+    # Train
+    CLF_RF.fit(X_TRAIN, Y_TRAIN)
 
-# %% Support Vector Machine (SVM)
+    # DataFrame of the results with the different hyperparameters
+    DF_RF = pd.DataFrame(CLF_RF.cv_results_)
 
-# Create pipeline a pipeline to search for the best
-# hyperparameters for the combination of PCA and RandomForestClassifier
-PIPE_SVM = Pipeline([('pca', PCA()),
-                     ('svc', SVC())])
+    print("RF Best parameters set found on development set:")
+    print(CLF_RF.best_params_)
+    print(f'Outcome {REFIT}: {CLF_RF.best_score_}')
 
-# The set of hyperparameters to tune
-PARAMETERS_SVM = {'pca__n_components': [1, 2, 3, 4, 5, 10, 20, 50, 100, 150, 200],  # Good
-                  'svc__C': [0.01, 0.1, 0.5, 1, 10, 100],
-               #  'svc__gamma': [0.1, 0.01, 0.001, 0.0001, 0.00001],
-                  #'svc__gamma': ['scale', 'auto'],
-                  'svc__kernel': ['rbf', 'poly', 'sigmoid'],  # Good
-                  'svc__degree': [2, 4, 6],
-                  'svc__max_iter': [100000]}  # Good
+    CLF_RF_BEST = CLF_RF.best_estimator_
 
-CLF_SVM = RandomizedSearchCV(PIPE_SVM, cv=CV_10, n_jobs=-1, n_iter=100,
-                             param_distributions=PARAMETERS_SVM,
-                             scoring=SCORE, refit=REFIT)
+    # %% Support Vector Machine (SVM)
 
-# Train
-CLF_SVM.fit(X_TRAIN, Y_TRAIN)
+    # Create pipeline a pipeline to search for the best
+    # hyperparameters for the combination of PCA and RandomForestClassifier
+    PIPE_SVM = Pipeline([('pca', PCA()),
+                        ('svc', SVC())])
 
-# DataFrame of the results with the different hyperparameters
-DF_SVM = pd.DataFrame(CLF_SVM.cv_results_)
+    # The set of hyperparameters to tune
+    PARAMETERS_SVM = {'pca__n_components': [1, 2, 3, 4, 5, 10, 20, 50, 100, 150, 200],  # Good
+                      'svc__C': [0.01, 0.1, 0.5, 1, 10, 100],
+                      # 'svc__gamma': [0.1, 0.01, 0.001, 0.0001, 0.00001],
+                      # 'svc__gamma': ['scale', 'auto'],
+                      'svc__kernel': ['rbf', 'poly', 'sigmoid'],  # Good
+                      'svc__degree': [2, 4, 6],
+                      'svc__max_iter': [100000]}  # Good
 
-print("SVM Best parameters set found on development set:")
-print(CLF_SVM.best_params_)
-print(f'Outcome {REFIT}: {CLF_SVM.best_score_}')
+    CLF_SVM = RandomizedSearchCV(PIPE_SVM, cv=CV_10, n_jobs=-1, n_iter=100,
+                                 param_distributions=PARAMETERS_SVM,
+                                 scoring=SCORE, refit=REFIT)
 
-CLF_SVM_BEST = CLF_SVM.best_estimator_
+    # Train
+    CLF_SVM.fit(X_TRAIN, Y_TRAIN)
+
+    # DataFrame of the results with the different hyperparameters
+    DF_SVM = pd.DataFrame(CLF_SVM.cv_results_)
+
+    print("SVM Best parameters set found on development set:")
+    print(CLF_SVM.best_params_)
+    print(f'Outcome {REFIT}: {CLF_SVM.best_score_}')
+
+    CLF_SVM_BEST = CLF_SVM.best_estimator_
 
 # %% 
-# LEARNING CURVEs FOR COMPLEXITY
+# LEARNING CURVES FOR COMPLEXITY
 
 # function
 def plot_learning_curve(estimator, title, X, y, axes=None, ylim=None, cv=None,
@@ -239,6 +251,7 @@ def plot_learning_curve(estimator, title, X, y, axes=None, ylim=None, cv=None,
 
     return plt
 
+
 # plot
 X, y = load_digits(return_X_y=True)
 CLFS = [CLF_KNN, CLF_RF, CLF_SVM]
@@ -251,4 +264,5 @@ for CLF, TITLE_CLF in zip(CLFS, TITLE_CLF):
     plot_learning_curve(CLF, title, X_TRAIN, Y_TRAIN, axes=axes[:, num], ylim=None)
     num += 1
 plt.show()
+plt.savefig('learning_curves.png')
 # %%
