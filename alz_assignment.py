@@ -163,6 +163,16 @@ for train_index, test_index in CV_5FOLD.split(X, Y):
     print(f'Outcome {REFIT}: {CLF_RF.best_score_}')
 
     CLF_RF_BEST = CLF_RF.best_estimator_
+# The set of hyperparameters to tune
+PARAMETERS_SVM = [{'svc__kernel': ['rbf'], 'svc__gamma': [0.1, 0.01, 0.001, 0.0001],
+                    'svc__C': [0.01, 0.1, 0.5, 1, 10, 100], 'svc__max_iter': [1000],
+                    'pca__n_components': [1, 2, 3, 4, 5, 10, 20, 50, 100, 150, 200]},
+                   {'svc__kernel': ['sigmoid'], 'svc__gamma': [0.1, 0.01, 0.001, 0.0001],
+                    'svc__C': [0.01, 0.1, 0.5, 1, 10, 100], 'svc__max_iter': [1000],
+                    'pca__n_components': [1, 2, 3, 4, 5, 10, 20, 50, 100, 150, 200]},
+                   {'svc__kernel': ['poly'], 'svc__degree': [2, 3, 4, 5],
+                    'svc__C': [0.01, 0.1, 0.5, 1, 10, 100], 'svc__max_iter': [1000],
+                    'pca__n_components': [1, 2, 3, 4, 5, 10, 20, 50, 100, 150, 200]}]
 
     # %% Support Vector Machine (SVM)
 
