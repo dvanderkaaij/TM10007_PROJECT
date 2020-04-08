@@ -160,13 +160,15 @@ PIPE_SVM = Pipeline([('pca', PCA()),
                      ('svc', SVC())])
 
 # The set of hyperparameters to tune
-PARAMETERS_SVM = {'pca__n_components': [1, 2, 3, 4, 5, 10, 20, 50, 100, 150, 200],  # Good
-                  'svc__C': [0.01, 0.1, 0.5, 1, 10, 100],
-               #  'svc__gamma': [0.1, 0.01, 0.001, 0.0001, 0.00001],
-                  #'svc__gamma': ['scale', 'auto'],
-                  'svc__kernel': ['rbf', 'poly', 'sigmoid'],  # Good
-                  'svc__degree': [2, 4, 6],
-                  'svc__max_iter': [100000]}  # Good
+PARAMETERS_SVM = [{'svc__kernel': ['rbf'], 'svc__gamma': [0.1, 0.01, 0.001, 0.0001],
+                    'svc__C': [0.01, 0.1, 0.5, 1, 10, 100], 'svc__max_iter': [1000],
+                    'pca__n_components': [1, 2, 3, 4, 5, 10, 20, 50, 100, 150, 200]},
+                   {'svc__kernel': ['sigmoid'], 'svc__gamma': [0.1, 0.01, 0.001, 0.0001],
+                    'svc__C': [0.01, 0.1, 0.5, 1, 10, 100], 'svc__max_iter': [1000],
+                    'pca__n_components': [1, 2, 3, 4, 5, 10, 20, 50, 100, 150, 200]},
+                   {'svc__kernel': ['poly'], 'svc__degree': [2, 3, 4, 5],
+                    'svc__C': [0.01, 0.1, 0.5, 1, 10, 100], 'svc__max_iter': [1000],
+                    'pca__n_components': [1, 2, 3, 4, 5, 10, 20, 50, 100, 150, 200]}]
 
 CLF_SVM = RandomizedSearchCV(PIPE_SVM, cv=CV_10, n_jobs=-1, n_iter=100,
                              param_distributions=PARAMETERS_SVM,
