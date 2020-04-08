@@ -27,7 +27,6 @@ from adni.load_data import load_data
 
 # %%
 # Load data
-DATA_ORIGINAL = load_data()
 DATA = load_data()
 
 # %%
@@ -60,7 +59,7 @@ Y_TEST = LB.fit_transform(Y_TEST)
 
 # %% Preprocessing
 
-# Removal of duplicates in X and corresponding Y (1 sample)
+# Remove duplicates in X and corresponding Y 
 DUPLICATES = X_TRAIN[X_TRAIN.duplicated(keep='first')]
 DUPLICATES_ID = DUPLICATES.index
 X_TRAIN = X_TRAIN.drop(DUPLICATES_ID)
@@ -70,20 +69,17 @@ Y_TRAIN = Y_TRAIN.drop(DUPLICATES_ID)
 LB = preprocessing.LabelBinarizer()
 Y_TRAIN = LB.fit_transform(Y_TRAIN)
 
-# remove 18 features
+# Remove duplicate features
 X_TRAIN = X_TRAIN.T.drop_duplicates().T
 
-# Removal of empty columns
+# Remove empty columns
 EMPTY_COLS = X_TRAIN.columns[(X_TRAIN == 0).sum() > 0.8*X_TRAIN.shape[0]]
-print(X_TRAIN.columns)
-print(f'empty: {EMPTY_COLS}')  # missing: vf_Frangi_edge_energy_SR(1.0, 10.0)_SS2.0
 X_TRAIN = X_TRAIN.drop(X_TRAIN[EMPTY_COLS], axis=1)
 
 # Removal of columns with same values
 NUNIQUE = X_TRAIN.apply(pd.Series.nunique)
 SAME_COLS = NUNIQUE[NUNIQUE < 3].index
-print(SAME_COLS)
-X_TRAIN = X_TRAIN.drop(X_TRAIN[SAME_COLS], axis=1)  # 4 colums removed
+X_TRAIN = X_TRAIN.drop(X_TRAIN[SAME_COLS], axis=1)
 
 # Scaling: Robust range matching
 SCALER = preprocessing.RobustScaler()
@@ -163,12 +159,6 @@ CLF_RF_BEST = CLF_RF.best_estimator_
 PIPE_SVM = Pipeline([('pca', PCA()),
                      ('svc', SVC())])
 
-# Parameters:
-# C -> regularization parameter, strength is inversely proportional to C
-# kernel -> linear, poly rbf, sigmoid or precomputed
-# degree -> integer
-# coef0 -> independent term? Only significant in poly and sigmoid
-
 # The set of hyperparameters to tune
 PARAMETERS_SVM = {'pca__n_components': [1, 2, 3, 4, 5, 10, 20, 50, 100, 150, 200],  # Good
                   'svc__C': [0.01, 0.1, 0.5, 1, 10, 100],
@@ -194,9 +184,8 @@ print(f'Outcome {REFIT}: {CLF_SVM.best_score_}')
 
 CLF_SVM_BEST = CLF_SVM.best_estimator_
 
-
 # %% 
-# LEARNING CURVE, COMPLEXITY
+# LEARNING CURVEs FOR COMPLEXITY
 
 # function
 def plot_learning_curve(estimator, title, X, y, axes=None, ylim=None, cv=None,
@@ -250,7 +239,7 @@ def plot_learning_curve(estimator, title, X, y, axes=None, ylim=None, cv=None,
 
     return plt
 
-# plot learning curves
+# plot
 X, y = load_digits(return_X_y=True)
 CLFS = [CLF_KNN, CLF_RF, CLF_SVM]
 TITLE_CLF = ['KNN', 'RF', 'SVM']
