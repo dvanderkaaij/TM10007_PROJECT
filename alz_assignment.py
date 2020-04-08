@@ -251,30 +251,15 @@ def plot_learning_curve(estimator, title, X, y, axes=None, ylim=None, cv=None,
     return plt
 
 # plot learning curves
-fig, axes = plt.subplots(2, 3, figsize=(15, 10))
-X, y = load_digits(return_X_y=True)
-
-title = "Learning Curves (KNN)"
-plot_learning_curve(CLF_KNN, title, X_TRAIN, Y_TRAIN, axes=axes[:, 0], ylim=None)
-
-title = "Learning Curves (RF)"
-plot_learning_curve(CLF_RF, title, X_TRAIN, Y_TRAIN, axes=axes[:, 1], ylim=None)
-
-title = "Learning Curves (SVM)"
-plot_learning_curve(CLF_SVM, title, X_TRAIN, Y_TRAIN, axes=axes[:, 2], ylim=None)
-
-plt.show()
-
-# in for-loop
 X, y = load_digits(return_X_y=True)
 CLFS = [CLF_KNN, CLF_RF, CLF_SVM]
-TITLE_CLF = [KNN, RF, SVM]
+TITLE_CLF = ['KNN', 'RF', 'SVM']
 
 fig, axes = plt.subplots(2, 3, figsize=(15, 10))
 num = 0
-for CLF in CLFS
+for CLF, TITLE_CLF in zip(CLFS, TITLE_CLF):
     title = f'Learning Curve {TITLE_CLF}'
-    plot_learning_curve(CLF, title, X_TRAIN, Y_TRAIN, axes=axes[:, 0], ylim=None)
-    num +=1
+    plot_learning_curve(CLF, title, X_TRAIN, Y_TRAIN, axes=axes[:, num], ylim=None)
+    num += 1
 plt.show()
 # %%
