@@ -5,12 +5,8 @@ This code is a machine learning pipeline for an Alzheimer's disease database
 # %%
 # Imports
 
-# from sklearn.model_selection import GridSearchCV
-# from missingpy import KNNImputer
-# from sklearn import model_selection
 from sklearn import preprocessing
 from sklearn.svm import SVC
-from sklearn.datasets import load_digits
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.neighbors import KNeighborsClassifier
@@ -20,30 +16,29 @@ from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.model_selection import learning_curve
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.metrics import roc_auc_score
-from sklearn.metrics import recall_score
-from sklearn.metrics import precision_score
+from sklearn.metrics import confusion_matrix
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from adni.load_data import load_data
-from sklearn.metrics import confusion_matrix
+
 
 # %%
-# LEARNING CURVES FOR COMPLEXITY
-# function
-def plot_learning_curve(estimator, title, X, y, axes=None, cv = None, xlim=None, ylim=None,
+# Function for plotting learning curves
+
+def plot_learning_curve(estimator, axes=None,
                         n_jobs=None, train_sizes=np.linspace(.1, 1.0, 5)):
     """
     Generates 1 plot: the test and training learning curve.
     """
     axes.set_title(title)
-    if ylim is not None:
-        axes.set_ylim(*ylim)
+    # if ylim is not None:
+    #    axes.set_ylim(*ylim)
     axes.set_xlabel("Training examples")
     axes.set_ylabel("Score")
 
-    train_sizes, train_scores, test_scores, _ , _ = \
-        learning_curve(estimator, X, y, cv =StratifiedKFold(n_splits=10),   n_jobs=n_jobs,
+    train_sizes, train_scores, test_scores, _, _ = \
+        learning_curve(estimator, X, Y, cv=StratifiedKFold(n_splits=10), n_jobs=n_jobs,
                        train_sizes=train_sizes,
                        return_times=True)
     train_scores_mean = np.mean(train_scores, axis=1)
@@ -54,22 +49,24 @@ def plot_learning_curve(estimator, title, X, y, axes=None, cv = None, xlim=None,
     # Plot learning curve
     axes.grid()
     axes.fill_between(train_sizes, train_scores_mean - train_scores_std,
-                         train_scores_mean + train_scores_std, alpha=0.1,
-                         color="r")
+                      train_scores_mean + train_scores_std, alpha=0.1,
+                      color="r")
     axes.fill_between(train_sizes, test_scores_mean - test_scores_std,
-                         test_scores_mean + test_scores_std, alpha=0.1,
-                         color="g")
+                      test_scores_mean + test_scores_std, alpha=0.1,
+                      color="g")
     axes.plot(train_sizes, train_scores_mean, 'o-', color="r",
-                 label="Training score")
+              label="Training score")
     axes.plot(train_sizes, test_scores_mean, 'o-', color="g",
-                 label="Cross-validation score")
+              label="Cross-validation score")
     axes.legend(loc="best")
 
     return plt
 
+
 # %%
 # Load data
 DATA = load_data()
+
 
 # %%
 # Describe data
@@ -92,20 +89,20 @@ X = DATA
 X = X.drop(['label'], axis=1)
 Y = DATA['label']
 
-# Split dataset --> Trainset(4/5) en Testset(1/5)
+# Function for outer cross validation
 CV_10FOLD = StratifiedKFold(n_splits=10)
 
 # Lists for AUC scores
 AUC_KNN = []
-AUC_RF = [] 
+AUC_RF = []
 AUC_SVM = []
 
 # Lists for sensitivity scores
 SENS_KNN = []
-SENS_RF = [] 
-SENS_SVM = [] 
+SENS_RF = []
+SENS_SVM = []
 
-# Lists for specificity scores 
+# Lists for specificity scores
 SPEC_KNN = []
 SPEC_RF = []
 SPEC_SVM = []
@@ -115,20 +112,18 @@ PAR_KNN = []
 PAR_RF = []
 PAR_SVM = []
 
-
 # Loop over the folds
-for train_index, test_index in CV_5FOLD.split(X, Y):
-    
-    # Split the data properly
+for train_index, test_index in CV_10FOLD.split(X, Y):
+    # Split the data
     X_TRAIN = X.iloc[train_index]
     Y_TRAIN = Y.iloc[train_index]
 
     X_TEST = X.iloc[test_index]
     Y_TEST = Y.iloc[test_index]
 
-    # %% Preprocessing
+    # PREPROCESSING
 
-    # Remove duplicates in X and corresponding Y 
+    # Remove duplicates in X and corresponding Y
     DUPLICATES = X_TRAIN[X_TRAIN.duplicated(keep='first')]
     DUPLICATES_ID = DUPLICATES.index
     X_TRAIN = X_TRAIN.drop(DUPLICATES_ID)
@@ -136,7 +131,7 @@ for train_index, test_index in CV_5FOLD.split(X, Y):
 
     DUPLICATES_TEST = X_TEST[X_TEST.duplicated(keep='first')]
     DUPLICATES_ID_TEST = DUPLICATES_TEST.index
-    X_TEST= X_TEST.drop(DUPLICATES_ID_TEST)
+    X_TEST = X_TEST.drop(DUPLICATES_ID_TEST)
     Y_TEST = Y_TEST.drop(DUPLICATES_ID_TEST)
 
     # Binarize labels
@@ -170,17 +165,17 @@ for train_index, test_index in CV_5FOLD.split(X, Y):
     X_TRAIN = SCALER.transform(X_TRAIN)
     X_TEST = SCALER.transform(X_TEST)
 
-    # Classifiers
+    # CLASSIFIERS
     SCORE = {'accuracy': 'accuracy',
              'roc_auc': 'roc_auc'}
-    REFIT =  'roc_auc'
+    REFIT = 'roc_auc'
 
+    # Function for outer cross validation
     CV_5 = StratifiedShuffleSplit(n_splits=5, test_size=0.10, train_size=0.90)
 
-    # %% K-Nearest Neighbors (KNN)
+    # K-Nearest Neighbors (KNN)
 
-    # Create pipeline a pipeline to search for the best
-    # hyperparameters for the combination of PCA and Nearest Neighbors
+    # Search for best hyperparameters for the combination of PCA and Nearest Neighbors
     PIPE_KNN = Pipeline([('pca', PCA()),
                          ('knn', KNeighborsClassifier())])
 
@@ -199,19 +194,11 @@ for train_index, test_index in CV_5FOLD.split(X, Y):
     # DataFrame of the results with the different hyperparameters
     DF_KNN = pd.DataFrame(CLF_KNN.cv_results_)
 
-    print("NN Best parameters set found on development set:")
-    print(CLF_KNN.best_params_)
-    print(f'Outcome {REFIT}: {CLF_KNN.best_score_}')
-
     CLF_KNN_BEST = CLF_KNN.best_estimator_
     PAR_KNN.append(CLF_KNN.best_params_)
 
-    # lists for different hyperparameter sets
-
-
-    # %% Random Forrest (RF)
-    # Create pipeline a pipeline to search for the best
-    # hyperparameters for the combination of PCA and RandomForestClassifier
+    # Random Forest (RF)
+    # Search for best hyperparameters for the combination of PCA and RandomForestClassifier
     PIPE_RF = Pipeline([('pca', PCA()),
                         ('rf', RandomForestClassifier())])
 
@@ -234,32 +221,25 @@ for train_index, test_index in CV_5FOLD.split(X, Y):
     # DataFrame of the results with the different hyperparameters
     DF_RF = pd.DataFrame(CLF_RF.cv_results_)
 
-    print("RF Best parameters set found on development set:")
-    print(CLF_RF.best_params_)
-    print(f'Outcome {REFIT}: {CLF_RF.best_score_}')
-
     CLF_RF_BEST = CLF_RF.best_estimator_
     PAR_SVM.append(CLF_RF.best_params_)
 
-    # The set of hyperparameters to tune
-    
-    # %% Support Vector Machine (SVM)
+    # Support Vector Machine (SVM)
 
-    # Create pipeline a pipeline to search for the best
-    # hyperparameters for the combination of PCA and RandomForestClassifier
+    # Search for best hyperparameters for the combination of PCA and SVM
     PIPE_SVM = Pipeline([('pca', PCA()),
-                        ('svc', SVC())])
+                         ('svc', SVC())])
 
     # The set of hyperparameters to tune
     PARAMETERS_SVM = [{'svc__kernel': ['rbf'], 'svc__gamma': [0.1, 0.01, 0.001, 0.0001],
-                    'svc__C': [0.01, 0.1, 0.5, 1, 10, 100], 'svc__max_iter': [1000],
-                    'pca__n_components': [1, 2, 3, 4, 5, 10, 20, 50, 100, 150, 200]},
-                   {'svc__kernel': ['sigmoid'], 'svc__gamma': [0.1, 0.01, 0.001, 0.0001],
-                    'svc__C': [0.01, 0.1, 0.5, 1, 10, 100], 'svc__max_iter': [1000],
-                    'pca__n_components': [1, 2, 3, 4, 5, 10, 20, 50, 100, 150, 200]},
-                   {'svc__kernel': ['poly'], 'svc__degree': [2, 3, 4, 5],
-                    'svc__C': [0.01, 0.1, 0.5, 1, 10, 100], 'svc__max_iter': [1000],
-                    'pca__n_components': [1, 2, 3, 4, 5, 10, 20, 50, 100, 150, 200]}]
+                       'svc__C': [0.01, 0.1, 0.5, 1, 10, 100], 'svc__max_iter': [1000],
+                       'pca__n_components': [1, 2, 3, 4, 5, 10, 20, 50, 100, 150, 200]},
+                      {'svc__kernel': ['sigmoid'], 'svc__gamma': [0.1, 0.01, 0.001, 0.0001],
+                       'svc__C': [0.01, 0.1, 0.5, 1, 10, 100], 'svc__max_iter': [1000],
+                       'pca__n_components': [1, 2, 3, 4, 5, 10, 20, 50, 100, 150, 200]},
+                      {'svc__kernel': ['poly'], 'svc__degree': [2, 3, 4, 5],
+                       'svc__C': [0.01, 0.1, 0.5, 1, 10, 100], 'svc__max_iter': [1000],
+                       'pca__n_components': [1, 2, 3, 4, 5, 10, 20, 50, 100, 150, 200]}]
 
     CLF_SVM = RandomizedSearchCV(PIPE_SVM, cv=CV_5, n_jobs=-1, n_iter=100,
                                  param_distributions=PARAMETERS_SVM,
@@ -271,22 +251,13 @@ for train_index, test_index in CV_5FOLD.split(X, Y):
     # DataFrame of the results with the different hyperparameters
     DF_SVM = pd.DataFrame(CLF_SVM.cv_results_)
 
-    print("SVM Best parameters set found on development set:")
-    print(CLF_SVM.best_params_)
-    print(f'Outcome {REFIT}: {CLF_SVM.best_score_}')
-
     CLF_SVM_BEST = CLF_SVM.best_estimator_
     PAR_RF.append(CLF_RF.best_params_)
 
-
+    # Train with outer cross-validation
     CLF_KNN_BEST.fit(X_TRAIN, Y_TRAIN)
     CLF_RF_BEST.fit(X_TRAIN, Y_TRAIN)
     CLF_SVM_BEST.fit(X_TRAIN, Y_TRAIN)
-
-    # best for learning curve, fitted on whole training set
-    #CLF_KNN_LC = CLF_KNN_BEST.best_estimator_
-    #CLF_RF_LC = CLF_RF_BEST.best_estimator_
-    #CLF_SVM_LC = CLF_SVM_BEST.best_estimator_
 
     # get predictions
     KNN_prediction = CLF_KNN_BEST.predict(X_TEST)
@@ -309,8 +280,12 @@ for train_index, test_index in CV_5FOLD.split(X, Y):
     SPEC_SVM.append(TN_SVM / (TN_SVM+FP_SVM))
     SENS_SVM.append(TP_SVM / (TP_SVM+FN_SVM))
 
-# %% 
-# Remove duplicates in X and corresponding Y 
+# %%
+# learning curves
+
+# PREPROCESSING X AND Y
+
+# Remove duplicates in X and corresponding Y
 DUPLICATES = X[X.duplicated(keep='first')]
 DUPLICATES_ID = DUPLICATES.index
 X = X.drop(DUPLICATES_ID)
@@ -330,43 +305,54 @@ X = X.drop(X[EMPTY_COLS], axis=1)
 # Removal of columns with same values
 NUNIQUE = X.apply(pd.Series.nunique)
 SAME_COLS = NUNIQUE[NUNIQUE < 2].index
-X= X.drop(X[SAME_COLS], axis=1)
+X = X.drop(X[SAME_COLS], axis=1)
 
 # Scaling: Robust range matching
 SCALER = preprocessing.RobustScaler()
 SCALER.fit(X)
 X = SCALER.transform(X)
 
+# %%
 # plot learning curves
 CLFS = [CLF_KNN_BEST, CLF_RF_BEST, CLF_SVM_BEST]
 TITLE_CLF = ['KNN', 'RF', 'SVM']
 
-fig, axes = plt.subplots(1, 3, figsize=(20, 10))
-num = 0
+FIG, AXES = plt.subplots(1, 3, figsize=(20, 10))
+NUM = 0
 for CLF, TITLE_CLF in zip(CLFS, TITLE_CLF):
     title = f'Learning Curve {TITLE_CLF}'
-    plot_learning_curve(CLF, title, X, Y, axes=axes[num], xlim=(50,150), ylim=None)
-    num += 1
-fig.savefig('learning_curves fold {num}.png')
-plt.show()   
-    
-#%%
-# Create table with AUC-values of the tree classifiers over the 10-fold cross validation
+    plot_learning_curve(CLF, title, X, Y, axes=AXES[NUM])
+    NUM += 1
+FIG.savefig(f'learning_curves 3 classifiers.png')
+plt.show()
+# %%
+# get results
+
+# Create df with AUC-values of the tree classifiers over the 10-fold cross validation
 DF_AUC_RESULTS = pd.DataFrame({'KNN': list(AUC_KNN),
-                   'RF': list(AUC_RF),
-                   'SVM': list(AUC_SVM)})
+                               'RF': list(AUC_RF),
+                               'SVM': list(AUC_SVM)})
+DF_AUC_RESULTS.loc['mean'] = DF_AUC_RESULTS.mean()
 DF_AUC_RESULTS['best_clf'] = DF_AUC_RESULTS.idxmax(axis=1)
+DF_AUC_RESULTS.loc['std'] = DF_AUC_RESULTS.std()
+print(DF_AUC_RESULTS)
+DF_AUC_RESULTS.to_csv('df_AUC_results.csv')
 
-RANKING = DF_AUC_RESULTS['best_clf'].value_counts()
-
+# Create df with specificities
 DF_SPEC_RESULTS = pd.DataFrame({'KNN': list(SPEC_KNN),
-                   'RF': list(SPEC_RF),
-                   'SVM': list(SPEC_SVM)})
+                                'RF': list(SPEC_RF),
+                                'SVM': list(SPEC_SVM)})
 DF_SPEC_RESULTS.loc['mean'] = DF_SPEC_RESULTS.mean()
+DF_SPEC_RESULTS.loc['std'] = DF_SPEC_RESULTS.std()
+print(DF_SPEC_RESULTS)
+DF_SPEC_RESULTS.to_csv('df_SPEC_results.csv')
 
+# Create df with sensitivities
 DF_SENS_RESULTS = pd.DataFrame({'KNN': list(SENS_KNN),
-                   'RF': list(SENS_RF),
-                   'SVM': list(SENS_SVM)})
+                                'RF': list(SENS_RF),
+                                'SVM': list(SENS_SVM)})
 DF_SENS_RESULTS.loc['mean'] = DF_SENS_RESULTS.mean()
-
-# %% 
+DF_SENS_RESULTS.loc['std'] = DF_SENS_RESULTS.std()
+print(DF_SENS_RESULTS)
+DF_SENS_RESULTS.to_csv('df_SENS_results.csv')
+# %%
