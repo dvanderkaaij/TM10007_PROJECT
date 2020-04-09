@@ -43,7 +43,7 @@ def plot_learning_curve(estimator, title, X, y, axes=None, cv = None, xlim=None,
     axes.set_ylabel("Score")
 
     train_sizes, train_scores, test_scores, _ , _ = \
-        learning_curve(estimator, X, y, cv =StratifiedKFold(n_splits=5),   n_jobs=n_jobs,
+        learning_curve(estimator, X, y, cv =StratifiedKFold(n_splits=10),   n_jobs=n_jobs,
                        train_sizes=train_sizes,
                        return_times=True)
     train_scores_mean = np.mean(train_scores, axis=1)
@@ -93,7 +93,7 @@ X = X.drop(['label'], axis=1)
 Y = DATA['label']
 
 # Split dataset --> Trainset(4/5) en Testset(1/5)
-CV_5FOLD = StratifiedKFold(n_splits=5)
+CV_10FOLD = StratifiedKFold(n_splits=10)
 
 # Lists for AUC scores
 AUC_KNN = []
@@ -129,15 +129,15 @@ for train_index, test_index in CV_5FOLD.split(X, Y):
     # %% Preprocessing
 
     # Remove duplicates in X and corresponding Y 
-    #DUPLICATES = X_TRAIN[X_TRAIN.duplicated(keep='first')]
-    #DUPLICATES_ID = DUPLICATES.index
-    #X_TRAIN = X_TRAIN.drop(DUPLICATES_ID)
-    #Y_TRAIN = Y_TRAIN.drop(DUPLICATES_ID)
+    DUPLICATES = X_TRAIN[X_TRAIN.duplicated(keep='first')]
+    DUPLICATES_ID = DUPLICATES.index
+    X_TRAIN = X_TRAIN.drop(DUPLICATES_ID)
+    Y_TRAIN = Y_TRAIN.drop(DUPLICATES_ID)
 
-    #DUPLICATES_TEST = X_TEST[X_TEST.duplicated(keep='first')]
-    #DUPLICATES_ID_TEST = DUPLICATES_TEST.index
-    #X_TEST= X_TEST.drop(DUPLICATES_ID_TEST)
-    #Y_TEST = Y_TEST.drop(DUPLICATES_ID_TEST)
+    DUPLICATES_TEST = X_TEST[X_TEST.duplicated(keep='first')]
+    DUPLICATES_ID_TEST = DUPLICATES_TEST.index
+    X_TEST= X_TEST.drop(DUPLICATES_ID_TEST)
+    Y_TEST = Y_TEST.drop(DUPLICATES_ID_TEST)
 
     # Binarize labels
     LB = preprocessing.LabelBinarizer()
@@ -157,11 +157,11 @@ for train_index, test_index in CV_5FOLD.split(X, Y):
 
     # Removal of columns with same values
     NUNIQUE = X_TRAIN.apply(pd.Series.nunique)
-    SAME_COLS = NUNIQUE[NUNIQUE < 3].index
+    SAME_COLS = NUNIQUE[NUNIQUE < 2].index
     X_TRAIN = X_TRAIN.drop(X_TRAIN[SAME_COLS], axis=1)
 
     NUNIQUE_TEST = X_TEST.apply(pd.Series.nunique)
-    SAME_COLS_TEST = NUNIQUE_TEST[NUNIQUE < 3].index
+    SAME_COLS_TEST = NUNIQUE_TEST[NUNIQUE < 2].index
     X_TEST = X_TEST.drop(X_TEST[SAME_COLS_TEST], axis=1)
 
     # Scaling: Robust range matching
@@ -175,7 +175,7 @@ for train_index, test_index in CV_5FOLD.split(X, Y):
              'roc_auc': 'roc_auc'}
     REFIT =  'roc_auc'
 
-    CV_10 = StratifiedShuffleSplit(n_splits=10, test_size=0.10, train_size=0.90)
+    CV_5 = StratifiedShuffleSplit(n_splits=5, test_size=0.10, train_size=0.90)
 
     # %% K-Nearest Neighbors (KNN)
 
@@ -189,7 +189,7 @@ for train_index, test_index in CV_5FOLD.split(X, Y):
                       'knn__n_neighbors': list(range(1, 99, 2)),
                       'knn__weights': ['uniform', 'distance']}
 
-    CLF_KNN = RandomizedSearchCV(PIPE_KNN, cv=CV_10, n_jobs=-1, n_iter=100,
+    CLF_KNN = RandomizedSearchCV(PIPE_KNN, cv=CV_5, n_jobs=-1, n_iter=100,
                                  param_distributions=PARAMETERS_KNN,
                                  scoring=SCORE, refit=REFIT)
 
@@ -224,7 +224,7 @@ for train_index, test_index in CV_5FOLD.split(X, Y):
                      'rf__min_samples_leaf': [1, 2, 4],
                      'rf__bootstrap': [True, False]}
 
-    CLF_RF = RandomizedSearchCV(PIPE_RF, cv=CV_10, n_jobs=-1, n_iter=100,
+    CLF_RF = RandomizedSearchCV(PIPE_RF, cv=CV_5, n_jobs=-1, n_iter=100,
                                 param_distributions=PARAMETERS_RF,
                                 scoring=SCORE, refit=REFIT)
 
@@ -239,7 +239,7 @@ for train_index, test_index in CV_5FOLD.split(X, Y):
     print(f'Outcome {REFIT}: {CLF_RF.best_score_}')
 
     CLF_RF_BEST = CLF_RF.best_estimator_
-    PAR_RF.append(CLF_RF.best_params_)
+    PAR_SVM.append(CLF_RF.best_params_)
 
     # The set of hyperparameters to tune
     
@@ -261,7 +261,7 @@ for train_index, test_index in CV_5FOLD.split(X, Y):
                     'svc__C': [0.01, 0.1, 0.5, 1, 10, 100], 'svc__max_iter': [1000],
                     'pca__n_components': [1, 2, 3, 4, 5, 10, 20, 50, 100, 150, 200]}]
 
-    CLF_SVM = RandomizedSearchCV(PIPE_SVM, cv=CV_10, n_jobs=-1, n_iter=100,
+    CLF_SVM = RandomizedSearchCV(PIPE_SVM, cv=CV_5, n_jobs=-1, n_iter=100,
                                  param_distributions=PARAMETERS_SVM,
                                  scoring=SCORE, refit=REFIT)
 
@@ -310,15 +310,42 @@ for train_index, test_index in CV_5FOLD.split(X, Y):
     SENS_SVM.append(TP_SVM / (TP_SVM+FN_SVM))
 
 # %% 
+# Remove duplicates in X and corresponding Y 
+DUPLICATES = X[X.duplicated(keep='first')]
+DUPLICATES_ID = DUPLICATES.index
+X = X.drop(DUPLICATES_ID)
+Y = Y.drop(DUPLICATES_ID)
+
+# Binarize labels
+LB = preprocessing.LabelBinarizer()
+Y = LB.fit_transform(Y)
+
+# Remove duplicate features
+X = X.T.drop_duplicates().T
+
+# Remove empty columns
+EMPTY_COLS = X.columns[(X == 0).sum() > 0.8*X.shape[0]]
+X = X.drop(X[EMPTY_COLS], axis=1)
+
+# Removal of columns with same values
+NUNIQUE = X.apply(pd.Series.nunique)
+SAME_COLS = NUNIQUE[NUNIQUE < 2].index
+X= X.drop(X[SAME_COLS], axis=1)
+
+# Scaling: Robust range matching
+SCALER = preprocessing.RobustScaler()
+SCALER.fit(X)
+X = SCALER.transform(X)
+
 # plot learning curves
 CLFS = [CLF_KNN_BEST, CLF_RF_BEST, CLF_SVM_BEST]
 TITLE_CLF = ['KNN', 'RF', 'SVM']
 
-fig, axes = plt.subplots(1, 3, figsize=(15, 10))
+fig, axes = plt.subplots(1, 3, figsize=(20, 10))
 num = 0
 for CLF, TITLE_CLF in zip(CLFS, TITLE_CLF):
     title = f'Learning Curve {TITLE_CLF}'
-    plot_learning_curve(CLF, title, X_TRAIN, Y_TRAIN, axes=axes[num],xlim=None, ylim=None)
+    plot_learning_curve(CLF, title, X, Y, axes=axes[num], xlim=(50,150), ylim=None)
     num += 1
 fig.savefig('learning_curves fold {num}.png')
 plt.show()   
