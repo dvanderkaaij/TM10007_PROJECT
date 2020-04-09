@@ -110,6 +110,12 @@ SPEC_KNN = []
 SPEC_RF = []
 SPEC_SVM = []
 
+# lists for different hyperparameter sets
+PAR_KNN = []
+PAR_RF = []
+PAR_SVM = []
+
+
 # Loop over the folds
 for train_index, test_index in CV_5FOLD.split(X, Y):
     
@@ -198,6 +204,10 @@ for train_index, test_index in CV_5FOLD.split(X, Y):
     print(f'Outcome {REFIT}: {CLF_KNN.best_score_}')
 
     CLF_KNN_BEST = CLF_KNN.best_estimator_
+    PAR_KNN.append(CLF_KNN.best_params_)
+
+    # lists for different hyperparameter sets
+
 
     # %% Random Forrest (RF)
     # Create pipeline a pipeline to search for the best
@@ -229,6 +239,8 @@ for train_index, test_index in CV_5FOLD.split(X, Y):
     print(f'Outcome {REFIT}: {CLF_RF.best_score_}')
 
     CLF_RF_BEST = CLF_RF.best_estimator_
+    PAR_RF.append(CLF_RF.best_params_)
+
     # The set of hyperparameters to tune
     
     # %% Support Vector Machine (SVM)
@@ -264,6 +276,8 @@ for train_index, test_index in CV_5FOLD.split(X, Y):
     print(f'Outcome {REFIT}: {CLF_SVM.best_score_}')
 
     CLF_SVM_BEST = CLF_SVM.best_estimator_
+    PAR_RF.append(CLF_RF.best_params_)
+
 
     CLF_KNN_BEST.fit(X_TRAIN, Y_TRAIN)
     CLF_RF_BEST.fit(X_TRAIN, Y_TRAIN)
