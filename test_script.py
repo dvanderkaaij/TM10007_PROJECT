@@ -29,6 +29,45 @@ from adni.load_data import load_data
 from sklearn.metrics import confusion_matrix
 
 # %%
+# LEARNING CURVES FOR COMPLEXITY
+# function
+def plot_learning_curve(estimator, title, X, y, axes=None, xlim=None, ylim=None, cv=None,
+                        n_jobs=None, train_sizes=np.linspace(.1, 1.0, 5)):
+    """
+    Generates 1 plot: the test and training learning curve.
+    """
+    axes.set_title(title)
+    if ylim is not None:
+        axes.set_ylim(*ylim)
+    axes.set_xlabel("Training examples")
+    axes.set_ylabel("Score")
+
+    train_sizes, train_scores, test_scores, _ , _ = \
+        learning_curve(estimator, X, y, cv=cv, n_jobs=n_jobs,
+                       train_sizes=train_sizes,
+                       return_times=True)
+    train_scores_mean = np.mean(train_scores, axis=1)
+    train_scores_std = np.std(train_scores, axis=1)
+    test_scores_mean = np.mean(test_scores, axis=1)
+    test_scores_std = np.std(test_scores, axis=1)
+
+    # Plot learning curve
+    axes.grid()
+    axes.fill_between(train_sizes, train_scores_mean - train_scores_std,
+                         train_scores_mean + train_scores_std, alpha=0.1,
+                         color="r")
+    axes.fill_between(train_sizes, test_scores_mean - test_scores_std,
+                         test_scores_mean + test_scores_std, alpha=0.1,
+                         color="g")
+    axes.plot(train_sizes, train_scores_mean, 'o-', color="r",
+                 label="Training score")
+    axes.plot(train_sizes, test_scores_mean, 'o-', color="g",
+                 label="Cross-validation score")
+    axes.legend(loc="best")
+
+    return plt
+
+# %%
 # Load data
 DATA = load_data()
 
@@ -94,7 +133,7 @@ for train_index, test_index in CV_5FOLD.split(X, Y):
     #X_TEST= X_TEST.drop(DUPLICATES_ID_TEST)
     #Y_TEST = Y_TEST.drop(DUPLICATES_ID_TEST)
 
-    # Binarize labels in trainset
+    # Binarize labels
     LB = preprocessing.LabelBinarizer()
     Y_TRAIN = LB.fit_transform(Y_TRAIN)
     Y_TEST = LB.fit_transform(Y_TEST)
@@ -230,6 +269,12 @@ for train_index, test_index in CV_5FOLD.split(X, Y):
     CLF_RF_BEST.fit(X_TRAIN, Y_TRAIN)
     CLF_SVM_BEST.fit(X_TRAIN, Y_TRAIN)
 
+    # best for learning curve, fitted on whole training set
+    #CLF_KNN_LC = CLF_KNN_BEST.best_estimator_
+    #CLF_RF_LC = CLF_RF_BEST.best_estimator_
+    #CLF_SVM_LC = CLF_SVM_BEST.best_estimator_
+
+    # get predictions
     KNN_prediction = CLF_KNN_BEST.predict(X_TEST)
     RF_prediction = CLF_RF_BEST.predict(X_TEST)
     SVM_prediction = CLF_SVM_BEST.predict(X_TEST)
@@ -250,7 +295,19 @@ for train_index, test_index in CV_5FOLD.split(X, Y):
     SPEC_SVM.append(TN_SVM / (TN_SVM+FP_SVM))
     SENS_SVM.append(TP_SVM / (TP_SVM+FN_SVM))
 
+    # plot learning curves
+    CLFS = [CLF_KNN_BEST, CLF_RF_BEST, CLF_SVM_BEST]
+    TITLE_CLF = ['KNN', 'RF', 'SVM']
 
+    fig, axes = plt.subplots(1, 3, figsize=(15, 10))
+    num = 0
+    for CLF, TITLE_CLF in zip(CLFS, TITLE_CLF):
+        title = f'Learning Curve {TITLE_CLF}'
+        plot_learning_curve(CLF, title, X_TEST, Y_TEST, axes=axes[num], xlim=(40, 150), ylim=(0.7, 1.05))
+        num += 1
+    fig.savefig('learning_curves fold {num}.png')
+    plt.show()
+    
 #%%
 # Create table with AUC-values of the tree classifiers over the 10-fold cross validation
 DF_AUC_RESULTS = pd.DataFrame({'KNN': list(AUC_KNN),
@@ -271,70 +328,3 @@ DF_SENS_RESULTS = pd.DataFrame({'KNN': list(SENS_KNN),
 DF_SENS_RESULTS.loc['mean'] = DF_SENS_RESULTS.mean()
 
 # %% 
-# LEARNING CURVES FOR COMPLEXITY
-
-# function
-def plot_learning_curve(estimator, title, X, y, axes=None, ylim=None, cv=None,
-                        n_jobs=None, train_sizes=np.linspace(.1, 1.0, 5)):
-    """
-    Generate 2 plots: the test and training learning curve, 
-    the fit times vs score curve.
-    """
-    if axes is None:
-        _, axes = plt.subplots(1, 2, figsize=(10, 15))
-
-    axes[0].set_title(title)
-    if ylim is not None:
-        axes.set_ylim(*ylim)
-    axes[0].set_xlabel("Training examples")
-    axes[0].set_ylabel("Score")
-
-    train_sizes, train_scores, test_scores, fit_times, _ = \
-        learning_curve(estimator, X, y, cv=cv, n_jobs=n_jobs,
-                       train_sizes=train_sizes,
-                       return_times=True)
-    train_scores_mean = np.mean(train_scores, axis=1)
-    train_scores_std = np.std(train_scores, axis=1)
-    test_scores_mean = np.mean(test_scores, axis=1)
-    test_scores_std = np.std(test_scores, axis=1)
-    fit_times_mean = np.mean(fit_times, axis=1)
-    fit_times_std = np.std(fit_times, axis=1)
-
-    # Plot learning curve
-    axes[0].grid()
-    axes[0].fill_between(train_sizes, train_scores_mean - train_scores_std,
-                         train_scores_mean + train_scores_std, alpha=0.1,
-                         color="r")
-    axes[0].fill_between(train_sizes, test_scores_mean - test_scores_std,
-                         test_scores_mean + test_scores_std, alpha=0.1,
-                         color="g")
-    axes[0].plot(train_sizes, train_scores_mean, 'o-', color="r",
-                 label="Training score")
-    axes[0].plot(train_sizes, test_scores_mean, 'o-', color="g",
-                 label="Cross-validation score")
-    axes[0].legend(loc="best")
-
-    # Plot fit_time vs score
-    axes[1].grid()
-    axes[1].plot(fit_times_mean, test_scores_mean, 'o-')
-    axes[1].fill_between(fit_times_mean, test_scores_mean - test_scores_std,
-                         test_scores_mean + test_scores_std, alpha=0.1)
-    axes[1].set_xlabel("fit_times")
-    axes[1].set_ylabel("Score")
-    axes[1].set_title("Performance of the model")
-
-    return plt
-
-# plot
-X, y = load_digits(return_X_y=True)
-CLFS = [CLF_KNN, CLF_RF, CLF_SVM]
-TITLE_CLF = ['KNN', 'RF', 'SVM']
-
-fig, axes = plt.subplots(2, 3, figsize=(15, 10))
-num = 0
-for CLF, TITLE_CLF in zip(CLFS, TITLE_CLF):
-    title = f'Learning Curve {TITLE_CLF}'
-    plot_learning_curve(CLF, title, X_TRAIN, Y_TRAIN, axes=axes[:, num], ylim=None)
-    num += 1
-plt.show()
-plt.savefig('learning_curves.png')
