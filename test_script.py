@@ -22,11 +22,11 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from adni.load_data import load_data
 
-
 # %%
 # Function for plotting learning curves
 
-def plot_learning_curve(estimator, axes=None,
+
+def plot_learning_curve(estimator, title, X, y, axes=None,
                         n_jobs=None, train_sizes=np.linspace(.1, 1.0, 5)):
     """
     Generates 1 plot: the test and training learning curve.
@@ -38,7 +38,7 @@ def plot_learning_curve(estimator, axes=None,
     axes.set_ylabel("Score")
 
     train_sizes, train_scores, test_scores, _, _ = \
-        learning_curve(estimator, X, Y, cv=StratifiedKFold(n_splits=10), n_jobs=n_jobs,
+        learning_curve(estimator, X, y, cv=StratifiedKFold(n_splits=10), n_jobs=n_jobs,
                        train_sizes=train_sizes,
                        return_times=True)
     train_scores_mean = np.mean(train_scores, axis=1)
@@ -317,13 +317,13 @@ X = SCALER.transform(X)
 CLFS = [CLF_KNN_BEST, CLF_RF_BEST, CLF_SVM_BEST]
 TITLE_CLF = ['KNN', 'RF', 'SVM']
 
-FIG, AXES = plt.subplots(1, 3, figsize=(20, 10))
+fig, AXES = plt.subplots(1, 3, figsize=(20, 10))
 NUM = 0
 for CLF, TITLE_CLF in zip(CLFS, TITLE_CLF):
     title = f'Learning Curve {TITLE_CLF}'
     plot_learning_curve(CLF, title, X, Y, axes=AXES[NUM])
     NUM += 1
-FIG.savefig(f'learning_curves 3 classifiers.png')
+fig.savefig(f'learning_curves 3 classifiers.png')
 plt.show()
 # %%
 # get results
