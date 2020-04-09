@@ -31,7 +31,7 @@ from sklearn.metrics import confusion_matrix
 # %%
 # LEARNING CURVES FOR COMPLEXITY
 # function
-def plot_learning_curve(estimator, title, X, y, axes=None, xlim=None, ylim=None, cv=None,
+def plot_learning_curve(estimator, title, X, y, axes=None, cv = None, xlim=None, ylim=None,
                         n_jobs=None, train_sizes=np.linspace(.1, 1.0, 5)):
     """
     Generates 1 plot: the test and training learning curve.
@@ -43,7 +43,7 @@ def plot_learning_curve(estimator, title, X, y, axes=None, xlim=None, ylim=None,
     axes.set_ylabel("Score")
 
     train_sizes, train_scores, test_scores, _ , _ = \
-        learning_curve(estimator, X, y, cv=cv, n_jobs=n_jobs,
+        learning_curve(estimator, X, y, cv =StratifiedKFold(n_splits=5),   n_jobs=n_jobs,
                        train_sizes=train_sizes,
                        return_times=True)
     train_scores_mean = np.mean(train_scores, axis=1)
@@ -295,18 +295,19 @@ for train_index, test_index in CV_5FOLD.split(X, Y):
     SPEC_SVM.append(TN_SVM / (TN_SVM+FP_SVM))
     SENS_SVM.append(TP_SVM / (TP_SVM+FN_SVM))
 
-    # plot learning curves
-    CLFS = [CLF_KNN_BEST, CLF_RF_BEST, CLF_SVM_BEST]
-    TITLE_CLF = ['KNN', 'RF', 'SVM']
+# %% 
+# plot learning curves
+CLFS = [CLF_KNN_BEST, CLF_RF_BEST, CLF_SVM_BEST]
+TITLE_CLF = ['KNN', 'RF', 'SVM']
 
-    fig, axes = plt.subplots(1, 3, figsize=(15, 10))
-    num = 0
-    for CLF, TITLE_CLF in zip(CLFS, TITLE_CLF):
-        title = f'Learning Curve {TITLE_CLF}'
-        plot_learning_curve(CLF, title, X_TEST, Y_TEST, axes=axes[num], xlim=(40, 150), ylim=(0.7, 1.05))
-        num += 1
-    fig.savefig('learning_curves fold {num}.png')
-    plt.show()
+fig, axes = plt.subplots(1, 3, figsize=(15, 10))
+num = 0
+for CLF, TITLE_CLF in zip(CLFS, TITLE_CLF):
+    title = f'Learning Curve {TITLE_CLF}'
+    plot_learning_curve(CLF, title, X_TRAIN, Y_TRAIN, axes=axes[num],xlim=None, ylim=None)
+    num += 1
+fig.savefig('learning_curves fold {num}.png')
+plt.show()   
     
 #%%
 # Create table with AUC-values of the tree classifiers over the 10-fold cross validation
