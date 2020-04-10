@@ -231,14 +231,16 @@ for train_index, test_index in CV_10FOLD.split(X, Y):
                          ('svc', SVC())])
 
     # The set of hyperparameters to tune
-    PARAMETERS_SVM = [{'svc__kernel': ['rbf'], 'svc__gamma': [0.1, 0.01, 0.001, 0.0001],
-                       'svc__C': [0.01, 0.1, 0.5, 1, 10, 100], 'svc__max_iter': [1000],
+    PARAMETERS_SVM = [{'svc__kernel': ['rbf'], 'svc__gamma': [1, 0.1, 0.01, 0.001, 0.0001],
+                       'svc__C': [0.01, 0.1, 0.5, 1, 10, 50, 100], 'svc__max_iter': [1000],
                        'pca__n_components': [1, 2, 3, 4, 5, 10, 20, 50, 100, 150, 200]},
-                      {'svc__kernel': ['sigmoid'], 'svc__gamma': [0.1, 0.01, 0.001, 0.0001],
-                       'svc__C': [0.01, 0.1, 0.5, 1, 10, 100], 'svc__max_iter': [1000],
+                      {'svc__kernel': ['sigmoid'], 'svc__gamma': [1, 0.1, 0.01, 0.001, 0.0001],
+                       'svc__C': [0.01, 0.1, 0.5, 1, 10, 50, 100], 'svc__max_iter': [1000], 
+                       'svc__coef0' : list(np.arange(0,1,0.1)),
                        'pca__n_components': [1, 2, 3, 4, 5, 10, 20, 50, 100, 150, 200]},
                       {'svc__kernel': ['poly'], 'svc__degree': [2, 3, 4, 5],
-                       'svc__C': [0.01, 0.1, 0.5, 1, 10, 100], 'svc__max_iter': [1000],
+                       'svc__C': [0.01, 0.1, 0.5, 1, 10, 50, 100], 'svc__max_iter': [1000],
+                       'svc__coef0' : list(np.arange(0,1,0.1)),
                        'pca__n_components': [1, 2, 3, 4, 5, 10, 20, 50, 100, 150, 200]}]
 
     CLF_SVM = RandomizedSearchCV(PIPE_SVM, cv=CV_5, n_jobs=-1, n_iter=100,
